@@ -1,7 +1,7 @@
-<img src="https://i.imgur.com/ZG4gSnb.jpeg" alt="demo"/>
+<img src="https://i.imgur.com/aDE5ogZ.jpeg" alt="Kevin's Gallery Demo"/>
 
-# Photography ![OpenCollective](https://opencollective.com/photography/tiers/backer/badge.svg?label=backer&color=brightgreen)
-A jekyll website for photographers
+# Kevin's Photography Gallery
+The goal of this project is to build a robust staic website hosting architecture in AWS for a photographer to display their work and spread their brand. Kevin Leger is a professional photographer with a focus on wildlife photography. He plans to host his work on a static website with some light blogging to complement. 
 
 ## Highlights
 1. Easy setup and you get a site of your own for __free__.
