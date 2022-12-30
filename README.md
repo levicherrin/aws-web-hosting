@@ -3,8 +3,35 @@
 # Kevin's Photography Gallery Introduction
 The goal of this project is to build a robust static website hosting architecture in AWS for a photographer to display their work. Kevin Leger is a professional photographer with a focus on wildlife photography who wants to share what he captures on a website with some light blogging to complement. 
 
+## Quick Start
+CloudFormation templates in work.
+
+1. s3 bucket (outputs bucket arn)
+
+2. ACM public cert (needs domain name and subdomains; outputs acm cert arn and r53 validation lines)
+
+3. CloudFront dist (needs ACM cert and s3 bucket; outputs cf distro value)
+
+4. Route53 config (needs custom domain, subdomains, CF distro, acm validation lines)
+
+/////
+
+1. s3 bucket
+
+2. Codestar connection (needs github account, github repo)
+
+2. Codepipeline config (needs codestar connection created for github repo, s3 bucket)
+
 ## Architecture
 <img src="https://i.imgur.com/HT9Dy1A.jpg" alt="AWS Architecture"/>
+
+### ELI5
+
+The website is hosted in an S3 bucket and served using CloudFront as the content delivery network. The website connection is encrypted using a SSL/TLS certificate through AWS Certificate Manager and integrated with the CloudFront distribution. DNS servers are hosted with Route 53 where we purchased a custom domain name and forward traffic to the CloudFront distribution.
+
+GitHub hosts a remote repository for the code and is integrated with CodePipeline to continuously deliver changes to the S3 bucket. Future work is planned to allow an end user to upload photos and change their gallery on the fly.
+
+### Service Descriptions
 
 1. **Amazon Simple Storage Service (Amazon S3)** is an object storage service that offers industry-leading scalability, data availability, security, and performance. You can use Amazon S3 to store and retrieve any amount of data at any time, from anywhere.
 
@@ -24,19 +51,15 @@ The goal of this project is to build a robust static website hosting architectur
 
 7. **AWS CloudFormation** is a service that helps you model and set up your AWS resources so that you can spend less time managing those resources and more time focusing on your applications that run in AWS. You create a template that describes all the AWS resources that you want (like Amazon EC2 instances or Amazon RDS DB instances), and CloudFormation takes care of provisioning and configuring those resources for you.
 
-### OLD
-The website is hosted in an S3 bucket and served using CloudFront as the content delivery network. The website connection is encrypted using a SSL/TLS certificate through AWS Certificate Manager and integrated with the CloudFront distribution. DNS servers are hosted with Route 53 where we purchased a custom domain name and forward traffic to the CloudFront distribution.
+### Prerequisites
 
-GitHub hosts a remote repository for the code and is integrated with CodePipeline to continuously deliver changes to the S3 bucket. Future work is planned to allow an end user to upload photos and change their gallery on the fly.
-### OLD
+1. GitHub account
 
-
-## Quick Start
-CloudFormation templates in work.
+2. Custom domain name (optional)
 
 ## Deep Dive
 Insert link to deep dive page here.
 
 ## Credits
-Thanks to [AJ](https://twitter.com/ajlkn) for the website template and [Ram](https://twitter.com/ram__patra) who enhanced it. Check out the website template [here](https://github.com/rampatra/photography).
+Thanks to [AJ](https://twitter.com/ajlkn) for the website template and [Ram](https://twitter.com/ram__patra) who enhanced it. Check out the website template on GitHub [here](https://github.com/rampatra/photography).
 
