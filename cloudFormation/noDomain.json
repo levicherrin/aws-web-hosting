@@ -1,33 +1,35 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
     "Resources": {
-        "S3Bucket": {
+        "repoBucket": {
             "Type": "AWS::S3::Bucket",
+            "DeletionPolicy": "Retain",
             "Properties": {
-                "AccessControl": "PublicRead",
-                "WebsiteConfiguration": {
-                    "IndexDocument": "index.html",
-                    "ErrorDocument": "error.html",
-                    "RoutingRules": [
-                        {
-                            "RoutingRuleCondition": {
-                                "HttpErrorCodeReturnedEquals": "404",
-                                "KeyPrefixEquals": "out1/"
-                            },
-                            "RedirectRule": {
-                                "HostName": "ec2-11-22-333-44.compute-1.amazonaws.com",
-                                "ReplaceKeyPrefixWith": "report-404/"
-                            }
-                        }
-                    ]
+                "PublicAccessBlockConfiguration": {
+                    "BlockPublicAcls" : "true",
+                    "BlockPublicPolicy" : "true",
+                    "IgnorePublicAcls" : "true",
+                    "RestrictPublicBuckets" : "true"
                 }
             }
         },
-        "PublicReadBucketPolicy": {
+        "artBucket": {
+            "Type": "AWS::S3::Bucket",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+                "PublicAccessBlockConfiguration": {
+                    "BlockPublicAcls" : "true",
+                    "BlockPublicPolicy" : "true",
+                    "IgnorePublicAcls" : "true",
+                    "RestrictPublicBuckets" : "true"
+                }
+            }
+        },
+        "BucketPolicyForOac": {
             "Type": "AWS::S3::BucketPolicy",
             "Properties": {
                 "Bucket": {
-                    "Ref": "S3Bucket"
+                    "Ref": "repoBucket"
                 },
                 "PolicyDocument": {
                     "Version": "2012-10-17",
@@ -39,28 +41,35 @@
                             "Effect": "Allow",
                             "Resource":
                             {
-                                "Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
+                                "Fn::Sub": "arn:aws:s3:::${repoBucket}/*"
                             },
-                            "Principal": "*"
+                            "Principal": {
+                                "Service": "cloudfront.amazonaws.com"
+                            },
+                            "Condition": {
+                                "StringEquals": {
+                                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudFrontDistribution}"}
+                                }
+                            }
                         }
                     ]
                 }
             }
         },
-        "cloudfrontdistribution": {
+        "cloudFrontDistribution": {
             "Type": "AWS::CloudFront::Distribution",
             "Properties": {
                 "DistributionConfig": {
                     "Origins": [
                         {
                             "DomainName": {
-                                "Fn::Sub": "${S3Bucket}.s3-website-${AWS::Region}.amazonaws.com"
+                                "Fn::GetAtt" : [ "repoBucket", "DomainName"]
                             },
                             "Id": "myStaticSite",
-                            "CustomOriginConfig": {
-                                "HTTPPort" : "80",
-                                "HTTPSPort" : "443",
-                                "OriginProtocolPolicy" : "http-only"                                  
+                            "S3OriginConfig": {
+                            },
+                            "OriginAccessControlId": {
+                                "Fn::GetAtt" : [ "originAccessControl", "Id"]
                             }
                         }
                     ],
@@ -93,13 +102,140 @@
                     }
                 }
             }
+        },
+        "githubConnection": {
+            "Type": "AWS::CodeStarConnections::Connection",
+            "Properties": {
+                "ConnectionName": "MyConnection",
+                "ProviderType": "GitHub",
+                "Tags": [
+                    {
+                        "Key": "Project",
+                        "Value": "ProjectB"
+                    }
+                ]
+            }
+        },
+        "myPipeline": {
+            "Type" : "AWS::CodePipeline::Pipeline",
+            "Properties" : {
+                "ArtifactStore": {
+                    "Location" : {"Ref": "artBucket"},
+                    "Type" : "S3"
+                },
+                "RoleArn": {
+                    "Fn::GetAtt": ["pipelineRole", "Arn"]
+                },
+                "Stages": [
+                    {
+                        "Name": "Source",
+                        "Actions": [
+                            {
+                                "Name": "Source",
+                                "InputArtifacts": [],
+                                "ActionTypeId": {
+                                    "Category": "Source",
+                                    "Owner" : "AWS",
+                                    "Provider" : "CodeStarSourceConnection",
+                                    "Version" : "1"
+                                },
+                                "OutputArtifacts": [
+                                    {
+                                        "Name": "SourceArtifact" 
+                                    }
+                                ],
+                                "Configuration": {
+                                    "ConnectionArn": {
+                                        "Fn::GetAtt": ["githubConnection", "ConnectionArn"]
+                                    },
+                                    "FullRepositoryId": "levicherrin/pipetest",
+                                    "BranchName": "main"
+                                },
+                                "RunOrder": "1"    
+                            }
+                        ]
+                    },
+                    {
+                        "Name": "Deploy",
+                        "Actions": [
+                            {
+                                "Name": "Deploy",
+                                "InputArtifacts": [
+                                    {
+                                        "Name": "SourceArtifact" 
+                                    }
+                                ],
+                                "ActionTypeId": {
+                                    "Category": "Deploy",
+                                    "Owner" : "AWS",
+                                    "Provider" : "S3",
+                                    "Version" : "1"
+                                },
+                                "Configuration": {
+                                    "BucketName": {"Ref": "repoBucket"},
+                                    "Extract": "true"
+                                },
+                                "RunOrder": "1"
+                            }
+                        ]
+                    }
+
+                ]
+            }
+        },
+        "pipelineRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "codepipeline.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyName": "pipePolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "*",
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "originAccessControl": {
+            "Type": "AWS::CloudFront::OriginAccessControl",
+            "Properties":{
+                "OriginAccessControlConfig": {
+                    "Name": {"Ref": "AWS::StackName"},
+                    "OriginAccessControlOriginType": "s3",
+                    "SigningBehavior": "always",
+                    "SigningProtocol": "sigv4"
+                }
+            }
         }
     },
     "Outputs": {
         "CDNURL": {
             "Value": {
                 "Fn::GetAtt": [
-                    "cloudfrontdistribution",
+                    "cloudFrontDistribution",
                     "DomainName"
                 ]
             },
