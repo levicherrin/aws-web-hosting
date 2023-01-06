@@ -22,6 +22,61 @@
     ga('send', 'pageview');
 </script>
 
+<script>
+    function submitToAPI(e) {
+       e.preventDefault();
+       var URL = "https://wdidazctn9.execute-api.us-east-1.amazonaws.com/prod/contact-kevin";
+
+            var Namere = /[A-Za-z]{1}[A-Za-z]/;
+            if (!Namere.test($("#name-input").val())) {
+                         alert ("Name can not less than 2 char");
+                return;
+            }
+            //var mobilere = /[0-9]{10}/;
+            //if (!mobilere.test($("#phone-input").val())) {
+            //    alert ("Please enter valid mobile number");
+            //    return;
+            //}
+            if ($("#email-input").val()=="") {
+                alert ("Please enter your email id");
+                return;
+            }
+
+            var reeamil = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,6})?$/;
+            if (!reeamil.test($("#email-input").val())) {
+                alert ("Please enter valid email address");
+                return;
+            }
+
+       var name = $("#name-input").val();
+       //var phone = $("#phone-input").val();
+       var email = $("#email-input").val();
+       var desc = $("#description-input").val();
+       var data = {
+          name : name,
+          //phone : phone,
+          email : email,
+          desc : desc
+        };
+
+       $.ajax({
+        url: URL,
+        type: 'POST',
+        data: JSON.stringify(data),
+        dataType: 'text',
+        crossDomain: true,
+        contentType: 'application/json',
+        success: function(data) {
+            alert(data);
+            document.getElementById("contact-form").reset();
+            location.reload();
+        },
+        error: function(e) {
+            alert("failed" + JSON.stringify(e));
+         }});
+     }
+</script>
+
 </head>
 <body>
 
@@ -509,7 +564,8 @@
                     <p></p>
                 </section>
                 <section>
-                    <h2>Sponsor</h2>
+                    <h2>Sponsors</h2>
+                    <p>Your business name/logo here</p>
                     <div class="ad">
                         <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
                         <ins class="adsbygoogle"
@@ -547,18 +603,18 @@
             <div>
                 <section>
                     <h2>Get in touch</h2>
-                    <form method="post" action="#">
+                    <form id="contact-form" method="post">
                         <div class="field half first">
-                            <input type="text" name="name" id="name" placeholder="Name"/>
+                            <input type="text" name="name" id="name-input" placeholder="Name"/>
                         </div>
                         <div class="field half">
-                            <input type="text" name="email" id="email" placeholder="Email"/>
+                            <input type="text" name="email" id="email-input" placeholder="Email"/>
                         </div>
                         <div class="field">
-                            <textarea name="message" id="message" rows="4" placeholder="Message"></textarea>
+                            <textarea name="message" id="description-input" rows="4" placeholder="Message"></textarea>
                         </div>
                         <ul class="actions">
-                            <li><input type="submit" value="Send" class="special"/></li>
+                            <li><button type="button" onClick="submitToAPI(event)" class="btn btn-lg">Submit</button></li>
                             <li><input type="reset" value="Reset"/></li>
                         </ul>
                     </form>
