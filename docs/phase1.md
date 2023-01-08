@@ -41,8 +41,14 @@ Phase 3 requires a registered custom domain name and a Route53 public hosted zon
 
 10. **AWS CloudFormation** is a service that helps you model and set up your AWS resources so that you can spend less time managing those resources and more time focusing on your applications that run in AWS. You create a template that describes all the AWS resources that you want (like Amazon EC2 instances or Amazon RDS DB instances), and CloudFormation takes care of provisioning and configuring those resources for you.
 
+### Prerequisites
+
+1. GitHub account
+
+2. Custom domain name (optional)
+
 ## Deep Dive
-To get started please review [phase 1](docs/phase1.md).
+Insert link to deep dive page here.
 
 ## Credits
 Thanks to [AJ](https://twitter.com/ajlkn) for the website template and [Ram](https://twitter.com/ram__patra) who enhanced it. Check out the website template on GitHub [here](https://github.com/rampatra/photography).
