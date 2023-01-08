@@ -1,7 +1,7 @@
 <img src="https://i.imgur.com/aDE5ogZ.jpeg" alt="Kevin's Gallery Demo"/>
 
 # Kevin's Photography Gallery Introduction
-The goal of this project is to build a robust static website hosting architecture in AWS for a photographer to display their work. Kevin Leger is a professional photographer with a focus on wildlife photography who wants to share what he captures on a website with some light blogging to complement. Visit Kevinleger.com to check out this project live.
+The goal of this project is to build a robust static website hosting architecture in AWS for a photographer to display their work. Kevin Leger is a professional photographer with a focus on wildlife photography who wants to share what he captures on a website with some light blogging to complement. Visit [kevinleger.com](kevinleger.com) to check out this project live.
 
 ## Quick Start
 The fastest way to get up and running is to have a static website named 'index.html' and no custom domain name registered. There are many free static website generators online and the link for the one used for this project is in the credits section.
