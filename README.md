@@ -11,7 +11,7 @@ Next, simply create a new cloudformation stack using the 'noDomain.json' templat
 
 
 ## Architecture
-[Test](docs/Architecture.jpg)
+![Test](docs/Architecture.jpg)
 
 ### ELI5
 
