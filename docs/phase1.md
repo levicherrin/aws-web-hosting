@@ -8,7 +8,7 @@
 Create a bucket in S3. Disable the block public access ACLs. Enable website hosting and set 'index document' to the website 'index.html' file.
 
 Create a resouce policy which allows access from the cloudfront origin access control identity.
-
+```
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -32,7 +32,7 @@ Create a resouce policy which allows access from the cloudfront origin access co
         }
     ]
 }
-
+```
 ### CloudFront
 Create a cloudfront distribution with a custom origin pointing to the domain name of the S3 bucket. Set the viewer protocol to 'redirect to https' and the default root object to index.html.
 
