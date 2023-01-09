@@ -3,27 +3,17 @@
     "Resources": {
         "S3Bucket": {
             "Type": "AWS::S3::Bucket",
+            "DeletionPolicy": "Retain",
             "Properties": {
-                "AccessControl": "PublicRead",
-                "WebsiteConfiguration": {
-                    "IndexDocument": "index.html",
-                    "ErrorDocument": "error.html",
-                    "RoutingRules": [
-                        {
-                            "RoutingRuleCondition": {
-                                "HttpErrorCodeReturnedEquals": "404",
-                                "KeyPrefixEquals": "out1/"
-                            },
-                            "RedirectRule": {
-                                "HostName": "ec2-11-22-333-44.compute-1.amazonaws.com",
-                                "ReplaceKeyPrefixWith": "report-404/"
-                            }
-                        }
-                    ]
+                "PublicAccessBlockConfiguration": {
+                    "BlockPublicAcls" : "true",
+                    "BlockPublicPolicy" : "true",
+                    "IgnorePublicAcls" : "true",
+                    "RestrictPublicBuckets" : "true"
                 }
             }
         },
-        "PublicReadBucketPolicy": {
+        "BucketPolicyForOac": {
             "Type": "AWS::S3::BucketPolicy",
             "Properties": {
                 "Bucket": {
@@ -41,7 +31,14 @@
                             {
                                 "Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
                             },
-                            "Principal": "*"
+                            "Principal": {
+                                "Service": "cloudfront.amazonaws.com"
+                            },
+                            "Condition": {
+                                "StringEquals": {
+                                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudFrontDistribution}"}
+                                }
+                            }
                         }
                     ]
                 }
@@ -54,13 +51,13 @@
                     "Origins": [
                         {
                             "DomainName": {
-                                "Fn::Sub": "${S3Bucket}.s3-website-${AWS::Region}.amazonaws.com"
+                                "Fn::GetAtt" : [ "S3Bucket", "DomainName"]
                             },
                             "Id": "myStaticSite",
-                            "CustomOriginConfig": {
-                                "HTTPPort" : "80",
-                                "HTTPSPort" : "443",
-                                "OriginProtocolPolicy" : "http-only"                                  
+                            "S3OriginConfig": {
+                            },
+                            "OriginAccessControlId": {
+                                "Fn::GetAtt" : [ "originAccessControl", "Id"]
                             }
                         }
                     ],
@@ -91,6 +88,17 @@
                     "ViewerCertificate": {
                         "CloudFrontDefaultCertificate": "true"
                     }
+                }
+            }
+        },
+        "originAccessControl": {
+            "Type": "AWS::CloudFront::OriginAccessControl",
+            "Properties":{
+                "OriginAccessControlConfig": {
+                    "Name": {"Ref": "AWS::StackName"},
+                    "OriginAccessControlOriginType": "s3",
+                    "SigningBehavior": "always",
+                    "SigningProtocol": "sigv4"
                 }
             }
         }
