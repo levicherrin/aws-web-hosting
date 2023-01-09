@@ -21,7 +21,14 @@ Create a resouce policy which allows access from the cloudfront origin access co
             {
                 "Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
             },
-            "Principal": "*"
+            "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+            },
+            "Condition": {
+                "StringEquals": {
+                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudFrontDistribution}"}
+                }
+            }
         }
     ]
 }
@@ -29,3 +36,4 @@ Create a resouce policy which allows access from the cloudfront origin access co
 ### CloudFront
 Create a cloudfront distribution with a custom origin pointing to the domain name of the S3 bucket. Set the viewer protocol to 'redirect to https' and the default root object to index.html.
 
+Also  create an origina access control identity which will allow read only access to the S3 bucket.
