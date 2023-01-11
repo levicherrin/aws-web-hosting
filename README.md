@@ -12,7 +12,7 @@ Phase 2 requires a github repository in addition to previous phase requirements.
 
 Phase 3 requires a registered custom domain name and a Route53 public hosted zone in addition to previous phase requirements.
 
-## Deep Dive
+## Implementation Deep Dive
 To get started please review [phase 1](docs/phase1.md).
 
 ## Architecture
