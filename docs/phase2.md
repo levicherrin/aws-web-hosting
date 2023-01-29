@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-1. 'index.html' document and any supporting assets for your 
+1. Previous phase requirements.
 
 2. Github account and repo storing the 'index.html' file and other supporting assets
 
