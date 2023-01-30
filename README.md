@@ -41,6 +41,10 @@ Phase 3 requires a registered custom domain name and a Route53 public hosted zon
 
 ## Implementation Deep Dive
 
+TODOS:
+- add logging to cloudfront distribution? might add central logging bucket for all services
+- need to narrow codepipeline policy permissions
+
 ### Phase1
 
 ### Prerequisites
@@ -48,50 +52,63 @@ Phase 3 requires a registered custom domain name and a Route53 public hosted zon
 1. 'index.html' document and any supporting assets for your website
 
 ### S3 Bucket
-Create a bucket in S3. Disable the block public access ACLs. Enable website hosting and set 'index document' to the website 'index.html' file.
+Create a bucket in S3 with all default settings applied and upload the website files.
 
-Create a resouce policy which allows access from the cloudfront origin access control identity.
+![Create Bucket](docs/phase1/createBucket.jpg)
+
+### CloudFront
+Create a cloudfront distribution and set the distribution origin domain to point to the S3 bucket.
+- Add an origin Access Control Identity (OAC) using the distribution wizard
+- Set the viewer protocol to `redirect http to https`
+- Choose the price class that aligns with expected end user locations
+- Set the default root object to `index.html`
+
+![Create Distribution](docs/phase1/createDistribution.jpg)
+
+### S3 Bucket Policy
+Create a resouce policy for the bucket which allows access from a cloudfront origin access control identity.
+
+![Create Bucket Policy](docs/phase1/bucketPolicy.jpg)
+
 ```
 {
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Action": [
-                "s3:GetObject"
-            ],
             "Effect": "Allow",
-            "Resource":
-            {
-                "Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
-            },
             "Principal": {
                 "Service": "cloudfront.amazonaws.com"
             },
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::MY-BUCKET-NAME/*"
+            },
             "Condition": {
                 "StringEquals": {
-                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudFrontDistribution}"}
+                    "AWS:SourceArn": "arn:aws:cloudfront::MY-ACCOUNT-ID:distribution/MY-DISTRIBUTION-ID
                 }
             }
         }
     ]
 }
 ```
+
+Now the website can be accessed via the cloudfront distribution domain name which is located on the details section of the distribution and looks something like `hj34l2kdfks.cloudfront.net`.
+
 ### Phase2
 
 ### Prerequisites
 
-1. Previous phase requirements.
+1. Completed previous phase(s).
 
-2. Github account and repo storing the 'index.html' file and other supporting assets
+2. Github account and repository storing the 'index.html' file and other supporting assets
 
 ### S3 Bucket
-Create another s3 bucket that will contain the artifacts created by CodePipeline.
+Create a new s3 bucket that will contain the artifacts created by CodePipeline.
 
 ### CodePipeline
 First create a new IAM policy and role for CodePipeline to use.
 
 ```
-Policy *need to narrow permissions*
 {
 "Version": "2012-10-17",
     "Statement": [
@@ -102,8 +119,9 @@ Policy *need to narrow permissions*
         }
     ]
 }
-
+```
 Role
+```
 {
 "Version": "2012-10-17",
     "Statement": [
@@ -122,18 +140,16 @@ Role
 }
 ```
 
-Now create a new pipeline with the source as GitHub. This will require creating a github connection linked to your GitHub account/repository. Be sure to select the bucket created earlier for the artifact store and also the role just created to set permissions. Add a deploy stage and select the website bucket created in phase 1.
+Now create a new pipeline with the source as GitHub. This will require creating a github connection linked to your GitHub account/repository. Be sure to select the new bucket for the artifact store and also the new role to set permissions for this pipeline. Add a deploy stage and select the website bucket created previously.
 
 ### CloudFront
-Create a cloudfront distribution with a custom origin pointing to the domain name of the S3 bucket. Set the viewer protocol to 'redirect to https', the default root object to index.html, and use the default cloudfront certificate for SSL/TLS.
-
-Also  create an origina access control identity which will allow read only access to the S3 bucket.
+No changes required.
 
 ### Phase3
 
 ### Prerequisites
 
-1. Previous phase requirements.
+1. Completed previous phase(s).
 
 2. A registered custom domain name and a Route53 public hosted zone with name servers configured for the domain name.
 
