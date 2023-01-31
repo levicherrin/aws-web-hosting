@@ -43,7 +43,10 @@ Phase 3 requires a registered custom domain name and a Route53 public hosted zon
 
 TODOS:
 - add logging to cloudfront distribution? might add central logging bucket for all services
-- need to narrow codepipeline policy permissions
+- need artifact bucket policy
+- verify what `select extract before deploy` does
+- add info about linking r53 name servers to external registered domain
+- check if IPv6 dns records are obsolete
 
 ### Phase1
 
@@ -66,7 +69,7 @@ Create a cloudfront distribution and set the distribution origin domain to point
 ![Create Distribution](docs/phase1/createDistribution.jpg)
 
 ### S3 Bucket Policy
-Create a resouce policy for the bucket which allows access from a cloudfront origin access control identity.
+Edit the bucket policy and define permissions which allow access from a cloudfront origin access control identity.
 
 ![Create Bucket Policy](docs/phase1/bucketPolicy.jpg)
 
@@ -84,7 +87,7 @@ Create a resouce policy for the bucket which allows access from a cloudfront ori
             },
             "Condition": {
                 "StringEquals": {
-                    "AWS:SourceArn": "arn:aws:cloudfront::MY-ACCOUNT-ID:distribution/MY-DISTRIBUTION-ID
+                    "AWS:SourceArn": "arn:aws:cloudfront::MY-ACCOUNT-ID:distribution/MY-DISTRIBUTION-ID"
                 }
             }
         }
@@ -103,24 +106,46 @@ Now the website can be accessed via the cloudfront distribution domain name whic
 2. Github account and repository storing the 'index.html' file and other supporting assets
 
 ### S3 Bucket
-Create a new s3 bucket that will contain the artifacts created by CodePipeline.
+Create a new s3 bucket with default settings to contain the artifacts created by CodePipeline.
+
+![Create Bucket](docs/phase1/createBucket.jpg)
 
 ### CodePipeline
-First create a new IAM policy and role for CodePipeline to use.
+First create a new IAM policy defining permissions to least priviledge for this use case. 
 
 ```
 {
 "Version": "2012-10-17",
     "Statement": [
         {
-            "Effect": "Allow",
-            "Action": "*",
-            "Resource": "*"
+            "Action": [
+                "codestar-connections:UseConnection"
+            ],
+            "Resource": "arn:aws:codestar-connections:us-east-1:MY-ACCOUNT-ID:connection/MY-CONNECTION-ID",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::MY-WEBSITE-BUCKET-NAME/*",
+                "arn:aws:s3:::MY-ARTIFACT-BUCKET-NAME/*"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": "arn:aws:s3:::MY-ARTIFACT-BUCKET-NAME/*",
+            "Effect": "Allow"
         }
     ]
 }
 ```
-Role
+Then create a role setting CodePipeline as the trusted entity and attach the new policy.
+
 ```
 {
 "Version": "2012-10-17",
@@ -140,10 +165,21 @@ Role
 }
 ```
 
-Now create a new pipeline with the source as GitHub. This will require creating a github connection linked to your GitHub account/repository. Be sure to select the new bucket for the artifact store and also the new role to set permissions for this pipeline. Add a deploy stage and select the website bucket created previously.
+Now create a new pipeline selecting the new bucket for the artifact store (under advanced settings) and also the new role to set permissions for this pipeline.
 
-### CloudFront
-No changes required.
+![Create Pipeline](docs/phase2/createPipeline.jpg)
+
+Source Stage - Set the source as GitHub (Version 2) which will require integrating AWS connector as a GitHub app with your GitHub account/repository. After creating the connection is created, select your repository name and branch name then keep other settings as default.
+
+![Create Connection](docs/phase2/createConnection.jpg)
+
+Build Stage - Skip. 
+
+Deploy Stage - Select S3 for the deploy stage provider and the website bucket created previously for the deploy location. Select extract before deploy and keep rest default.
+
+Now that the pipeline is created, changes will flow from the GitHub repository to the website S3 Bucket automatically.
+
+![Successful Pipeline](docs/phase2/pipeline.jpg)
 
 ### Phase3
 
@@ -154,13 +190,30 @@ No changes required.
 2. A registered custom domain name and a Route53 public hosted zone with name servers configured for the domain name.
 
 ### ACM
-Create a certificate with a wildcard as the domain name and set the alternative domain as the apex domain.
+Request a public certificate with a wildcard subdomain as the domain name and add another domain with the value of the apex domain.
+
+The wildcard subdomain should look something like `*.example.com`
+
+![Request Certificate](docs/phase3/requestCertificate.jpg)
+
+Note the record values provided by the ACM console that are required to issue the certificate.
 
 ### Route53
-Create DNS entries to validate the ACM certificate and route traffic from the custom domain to the cloudfront distribution.
+Create DNS entries to route traffic from the custom domain to the cloudfront distribution and validate the ACM certificate.
+
+- A and AAAA alias records for the apex domain routing traffic to the cloudfront distribution domain name
+- A and AAAA alias records for the any subdomains routing traffic to the cloudfront distribution domain name
+- CNAME record(s) for ACM certificate validation
 
 ### CloudFront
-Add the custom domain and subdomains to aliases. Change the certificate to the new ACM certificate for the domain.
+Edit the distribution general settings alternate domain name field to add the custom apex domain and any subdomains. Also select the custom certificate issued by ACM for the custom domain.
+
+![Edit Distribution](docs/phase3/editDistribution.jpg)
+
+The website is now accessible from the custom domain via HTTPS.
+
+![Custom Domain](docs/phase3/customDomain.jpg)
+
 
 ## Credits
 Thanks to [AJ](https://twitter.com/ajlkn) for the website template and [Ram](https://twitter.com/ram__patra) who enhanced it. Check out the website template on GitHub [here](https://github.com/rampatra/photography).
