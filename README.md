@@ -42,8 +42,9 @@ Phase 3 requires a registered custom domain name and a Route53 public hosted zon
 ## Implementation Deep Dive
 
 TODOS:
+- writeup phase4
 - add logging to cloudfront distribution? might add central logging bucket for all services
-- need artifact bucket policy
+- need artifact bucket policy and edit web bucket policy for pipeline?
 - verify what `select extract before deploy` does
 - add info about linking r53 name servers to external registered domain
 - check if IPv6 dns records are obsolete
@@ -213,6 +214,12 @@ Edit the distribution general settings alternate domain name field to add the cu
 The website is now accessible from the custom domain via HTTPS.
 
 ![Custom Domain](docs/phase3/customDomain.jpg)
+
+### Phase4
+
+### Prerequisites
+
+TBD
 
 
 ## Credits
