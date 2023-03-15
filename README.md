@@ -75,7 +75,7 @@ Edit the bucket policy and define permissions which allow access from a cloudfro
 
 **NOTE**: Replace any 'my' statements with the actual values specific to your deployment (e.g., `arn:aws:s3:::MY-BUCKET-NAME/* -> arn:aws:s3:::static-website-123/*`)
 
-![Create Bucket Policy](docs/phase1/cloudfrontWebsite.jpg)
+![Create Bucket Policy](docs/phase1/bucketPolicy.jpg)
 
 ```
 {
@@ -101,7 +101,7 @@ Edit the bucket policy and define permissions which allow access from a cloudfro
 
 Now the website can be accessed via HTTPS with the cloudfront distribution domain name which is located on the details section of the distribution and looks like `hj34l2kdfks.cloudfront.net`.
 
-![Cloudfront Website](docs/phase1/bucketPolicy.jpg)
+![Cloudfront Website](docs/phase1/cloudfrontWebsite.jpg)
 
 ### Phase2
 
