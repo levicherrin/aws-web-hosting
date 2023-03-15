@@ -320,7 +320,7 @@ The function can be tested by configuring a test even with a JSON event like the
 
 ### API Gateway
 
-Create a new REST API that will recieve POST requests from the contact form then route the request to the lambda function.
+Create a new REST API that will receive POST requests from the contact form then route the request to the lambda function.
 
 ![Create API](docs/phase4/createAPI.jpg)
 
