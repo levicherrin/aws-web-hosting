@@ -49,6 +49,8 @@ TODOS:
 - add info about linking r53 name servers to external registered domain
 - check if IPv6 dns records are obsolete
 - add 'why should i' statements for each phase to explain new capabilities gained
+- review IAM policy permisions for SES
+- review any best practices SES configuration
 
 ### Phase1
 
@@ -159,7 +161,7 @@ First, create a new IAM policy defining permissions for this use case keeping le
 
 ```
 {
-"Version": "2012-10-17",
+    "Version": "2012-10-17",
     "Statement": [
         {
             "Action": [
@@ -192,7 +194,7 @@ Next, create a role defining CodePipeline as the trusted entity and attach the p
 
 ```
 {
-"Version": "2012-10-17",
+    "Version": "2012-10-17",
     "Statement": [
         {
             "Effect": "Allow",
@@ -229,8 +231,118 @@ Now changes made in the GitHub repository will flow to the website S3 Bucket aut
 
 ### Prerequisites
 
-TBD
+1. Completed Phase1
 
+2. A contact form integrated with your website
+
+3. Optional: completed Phase2 to use a custom domain with SES
+
+### Simple Email Service
+
+Verify the identites (domains or email addresses) that will be used to send emails or receive emails. This process is very simple for email addresses requiring clicking a link in an email to the address while domains require slightly more setup.
+
+**Note**: A single email can be verified and used for sending and receiving emails to get started quickly.
+
+![Verification Email](docs/phase4/sesVerificationEmail.jpg)
+
+### Lambda
+
+Create a new IAM policy defining permissions that allows sending emails through SES. 
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "ses:SendEmail",
+            "Resource": "*"
+        }
+    ]
+}
+```
+Next, create a role defining lambda as the trusted entity and attach the policy to this role.
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "lambda.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+
+Create a new lambda function from scratch, name the function, select the latest python runtime (python 3.9 at this time), and expand 'change default execution role' then select the new role that provides SES permissions.
+
+![Create Function](docs/phase4/createLambda.jpg)
+
+Replace the existing code source with the contactForm.py script (also shown below) and deploy the changes.
+
+```
+import json
+import boto3
+def lambda_handler(event, context):
+    ses = boto3.client('ses')
+    print(event['name'])
+    body = 'Name : ' + event['name'] + '\n Email : ' + event['email'] + '\n Message : ' +event['desc']
+    ses.send_email(
+        Source = 'MY-SOURCE-EMAIL',
+        Destination = {'ToAddresses': ['MY-DESTINATION-EMAIL']},
+        Message = {'Subject':{
+               'Data':'New Communication From MY-WEBSITE',
+               'Charset':'UTF-8'
+           },
+           'Body':{
+               'Text':{
+                   'Data':body,
+                   'Charset':'UTF-8'
+               }
+           }}
+    )
+    return{'statusCode': 200,'body': json.dumps('wohoo!, Email sent successfully')}
+```
+The function can be tested by configuring a test even with a JSON event like the following.
+
+```
+{
+  "name": "value1",
+  "email": "value2",
+  "desc": "value3"
+}
+```
+![Create Function](docs/phase4/lambdaTest.jpg)
+
+### API Gateway
+
+Create a new REST API that will recieve POST requests from the contact form then route the request to the lambda function.
+
+![Create API](docs/phase4/createAPI.jpg)
+
+Create a new API resource providing a name and selecting enable CORS.
+
+![Create API](docs/phase4/createResource.jpg)
+
+Create a new method and select POST.
+
+![Create API](docs/phase4/createMethod.jpg)
+
+Finally deploy the API and create a new deployment stage.
+
+![Create API](docs/phase4/deployAPI.jpg)
+
+![Create API](docs/phase4/createStage.jpg)
+
+Copy the POST invoke url from the stages tab of the API and include the url in the website's contact form. The invoke url should be similar to `https://dfh341235s.execute-api.us-east-1.amazonaws.com/01/contactme`
+
+The API can be tested using your website contact form or with the API gateway console by selecting the post method on the resources tab, clicking on test, and copying the same JSON used to test the Lambda Function into the request body.
+
+![Create API](docs/phase4/successfulTest.jpg)
 
 ## Credits
 Thanks to [AJ](https://twitter.com/ajlkn) for the website template and [Ram](https://twitter.com/ram__patra) who enhanced it. Check out the website template on GitHub [here](https://github.com/rampatra/photography).
