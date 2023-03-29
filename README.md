@@ -1,16 +1,29 @@
 ![Kevin's Website](docs/kevinlegerwebsite.jpg)
 
 # Website Hosting in AWS - ft. Photography by Kevin Leger
-This repository contains blueprints to build robust static website hosting architectures in AWS with features such as continuous delivery, accelerated content delivery, a contact form backend, and more.
+This repository contains step-by-step guides and Infrastructure as Code (IaC) scripts for building robust static website hosting architectures in AWS with features such as:
 
-To get started, review the architecture overview to decide on what features to implement then follow the deep dive guide or launch the appropriate CloudFormation template.
+- Custom domain integration
+- Accelerated content delivery
+- Continuous Delivery (CD) pipeline
+- Contact form backend and more
 
 Visit [kevinleger.com](https://kevinleger.com) to check out a live example.
 
+To get started, review the architecture overview to decide on what features to implement for your use case then follow along with deep dives or launch the appropriate CloudFormation template in AWS.
+
 ## Architecture Overview
+The complete architecture can be seen below and is broken down into phases to separate features from one another.
+
+- Phase1: S3 bucket
+- Phase2: CloudFront
+- Phase3: ACM and R53
+- Phase4: API GW, Lambda, and SES
+- Phase5: GitHub and CodePipeline 
+
 ![Website Architecture](docs/Architecture.jpg)
 
-### Architecture Descriptions ([link to AWS docs](https://docs.aws.amazon.com/))
+## Service Descriptions ([link to AWS docs](https://docs.aws.amazon.com/))
 
 1. **Simple Storage Service (S3)** is an object storage service that offers industry-leading scalability, data availability, security, and performance. You can use Amazon S3 to store and retrieve any amount of data at any time, from anywhere.
 
@@ -34,16 +47,12 @@ Visit [kevinleger.com](https://kevinleger.com) to check out a live example.
 
 11. **Serverless Image Processing** is an event driven architecture written in python to transform uploaded images into thumbnails (using machine learning service Rekognition) and fullsize images with watermarks. Check out the project [here](https://github.com/levicherrin/aws-serverless-image-processing).
 
-## Quick Deploy
-If you're already familiar with AWS and the services used in this project then the fastest way to get up and running is to deploy one of three cloudformation templates.
+## Deep Dive
+This section will cover the implementation of each phase in enough detail for anyone following along and getting their hands dirty. Every button click will not be captured as the console wizards are pretty easy to follow and AWS changes layouts change overtime anyway.
 
-Phase 1 requires a static website `index.html` file.
+**NOTE**: Replace any 'my' statements with the actual values specific to your deployment 
 
-Phase 2 requires a github repository in addition to previous phase requirements.
-
-Phase 3 requires a registered custom domain name and a Route53 public hosted zone in addition to previous phase requirements.
-
-## Implementation Deep Dive
+`arn:aws:s3:::MY-BUCKET-NAME/* -> arn:aws:s3:::static-website-123/*`
 
 TODOS:
 - add logging to cloudfront distribution? might add central logging bucket for all services
@@ -55,7 +64,7 @@ TODOS:
 - review IAM policy permisions for SES
 - review any best practices SES configuration
 
-### Phase1
+### Phase1 - Getting up and Running
 
 ### Prerequisites
 
@@ -77,8 +86,6 @@ Create a cloudfront distribution and set the distribution origin domain to point
 
 ### S3 Bucket Policy
 Edit the bucket policy and define permissions which allow access from a cloudfront origin access control identity.
-
-**NOTE**: Replace any 'my' statements with the actual values specific to your deployment (e.g., `arn:aws:s3:::MY-BUCKET-NAME/* -> arn:aws:s3:::static-website-123/*`)
 
 ![Create Bucket Policy](docs/phase1/bucketPolicy.jpg)
 
@@ -160,7 +167,7 @@ Create a new s3 bucket with default settings to contain the artifacts created by
 ![Create Bucket](docs/phase1/createBucket.jpg)
 
 ### CodePipeline
-First, create a new IAM policy defining permissions for this use case keeping least priviledge in mind. 
+First, create a new IAM policy defining the minimum permissions required for CodePipeline to deliver files from GitHub to S3. 
 
 ```
 {
