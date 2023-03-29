@@ -1,9 +1,13 @@
 ![Kevin's Website](docs/kevinlegerwebsite.jpg)
 
-# AWS Static Website Introduction - ft. Kevin's Photography Gallery 
-The goal of this project is to build a robust static website hosting architecture in AWS focusing on reliability, security, and automation. Kevin Leger is a professional photographer with a focus on wildlife photography who wants to share what he captures with the world. Please visit [kevinleger.com](https://kevinleger.com) to check out this project live.
+# Website Hosting in AWS - ft. Photography by Kevin Leger
+This repository contains blueprints to build robust static website hosting architectures in AWS with features such as continuous delivery, accelerated content delivery, a contact form backend, and more.
 
-## Architecture
+To get started, review the architecture overview to decide on what features to implement then follow the deep dive guide or launch the appropriate CloudFormation template.
+
+Visit [kevinleger.com](https://kevinleger.com) to check out a live example.
+
+## Architecture Overview
 ![Website Architecture](docs/Architecture.jpg)
 
 ### Architecture Descriptions ([link to AWS docs](https://docs.aws.amazon.com/))
@@ -42,7 +46,6 @@ Phase 3 requires a registered custom domain name and a Route53 public hosted zon
 ## Implementation Deep Dive
 
 TODOS:
-- writeup phase4
 - add logging to cloudfront distribution? might add central logging bucket for all services
 - need artifact bucket policy and edit web bucket policy for pipeline?
 - verify what `select extract before deploy` does
