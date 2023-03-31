@@ -1,19 +1,7 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
     "Resources": {
-        "repoBucket": {
-            "Type": "AWS::S3::Bucket",
-            "DeletionPolicy": "Retain",
-            "Properties": {
-                "PublicAccessBlockConfiguration": {
-                    "BlockPublicAcls" : "true",
-                    "BlockPublicPolicy" : "true",
-                    "IgnorePublicAcls" : "true",
-                    "RestrictPublicBuckets" : "true"
-                }
-            }
-        },
-        "artBucket": {
+        "S3Bucket": {
             "Type": "AWS::S3::Bucket",
             "DeletionPolicy": "Retain",
             "Properties": {
@@ -29,7 +17,7 @@
             "Type": "AWS::S3::BucketPolicy",
             "Properties": {
                 "Bucket": {
-                    "Ref": "repoBucket"
+                    "Ref": "S3Bucket"
                 },
                 "PolicyDocument": {
                     "Version": "2012-10-17",
@@ -41,7 +29,7 @@
                             "Effect": "Allow",
                             "Resource":
                             {
-                                "Fn::Sub": "arn:aws:s3:::${repoBucket}/*"
+                                "Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
                             },
                             "Principal": {
                                 "Service": "cloudfront.amazonaws.com"
@@ -56,14 +44,14 @@
                 }
             }
         },
-        "cloudFrontDistribution": {
+        "cloudfrontdistribution": {
             "Type": "AWS::CloudFront::Distribution",
             "Properties": {
                 "DistributionConfig": {
                     "Origins": [
                         {
                             "DomainName": {
-                                "Fn::GetAtt" : [ "repoBucket", "DomainName"]
+                                "Fn::GetAtt" : [ "S3Bucket", "DomainName"]
                             },
                             "Id": "myStaticSite",
                             "S3OriginConfig": {
@@ -103,122 +91,6 @@
                 }
             }
         },
-        "githubConnection": {
-            "Type": "AWS::CodeStarConnections::Connection",
-            "Properties": {
-                "ConnectionName": "MyConnection",
-                "ProviderType": "GitHub",
-                "Tags": [
-                    {
-                        "Key": "Project",
-                        "Value": "ProjectB"
-                    }
-                ]
-            }
-        },
-        "myPipeline": {
-            "Type" : "AWS::CodePipeline::Pipeline",
-            "Properties" : {
-                "ArtifactStore": {
-                    "Location" : {"Ref": "artBucket"},
-                    "Type" : "S3"
-                },
-                "RoleArn": {
-                    "Fn::GetAtt": ["pipelineRole", "Arn"]
-                },
-                "Stages": [
-                    {
-                        "Name": "Source",
-                        "Actions": [
-                            {
-                                "Name": "Source",
-                                "InputArtifacts": [],
-                                "ActionTypeId": {
-                                    "Category": "Source",
-                                    "Owner" : "AWS",
-                                    "Provider" : "CodeStarSourceConnection",
-                                    "Version" : "1"
-                                },
-                                "OutputArtifacts": [
-                                    {
-                                        "Name": "SourceArtifact" 
-                                    }
-                                ],
-                                "Configuration": {
-                                    "ConnectionArn": {
-                                        "Fn::GetAtt": ["githubConnection", "ConnectionArn"]
-                                    },
-                                    "FullRepositoryId": "levicherrin/pipetest",
-                                    "BranchName": "main"
-                                },
-                                "RunOrder": "1"    
-                            }
-                        ]
-                    },
-                    {
-                        "Name": "Deploy",
-                        "Actions": [
-                            {
-                                "Name": "Deploy",
-                                "InputArtifacts": [
-                                    {
-                                        "Name": "SourceArtifact" 
-                                    }
-                                ],
-                                "ActionTypeId": {
-                                    "Category": "Deploy",
-                                    "Owner" : "AWS",
-                                    "Provider" : "S3",
-                                    "Version" : "1"
-                                },
-                                "Configuration": {
-                                    "BucketName": {"Ref": "repoBucket"},
-                                    "Extract": "true"
-                                },
-                                "RunOrder": "1"
-                            }
-                        ]
-                    }
-
-                ]
-            }
-        },
-        "pipelineRole": {
-            "Type": "AWS::IAM::Role",
-            "Properties": {
-                "AssumeRolePolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Principal": {
-                                "Service": [
-                                    "codepipeline.amazonaws.com"
-                                ]
-                            },
-                            "Action": [
-                                "sts:AssumeRole"
-                            ]
-                        }
-                    ]
-                },
-                "Policies": [
-                    {
-                        "PolicyName": "pipePolicy",
-                        "PolicyDocument": {
-                            "Version": "2012-10-17",
-                            "Statement": [
-                                {
-                                    "Effect": "Allow",
-                                    "Action": "*",
-                                    "Resource": "*"
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        },
         "originAccessControl": {
             "Type": "AWS::CloudFront::OriginAccessControl",
             "Properties":{
@@ -235,7 +107,7 @@
         "CDNURL": {
             "Value": {
                 "Fn::GetAtt": [
-                    "cloudFrontDistribution",
+                    "cloudfrontdistribution",
                     "DomainName"
                 ]
             },

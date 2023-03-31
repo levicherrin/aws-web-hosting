@@ -1,6 +1,78 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters" : {
+        "myZone" : {
+          "Type" : "String",
+          "Description" : "Enter your Route53 Hosted Zone ID."
+        },
+        "myDomain" : {
+            "Type" : "String",
+            "Description" : "Enter your custom apex domain (e.g. example.com)."
+          }
+      },
     "Resources": {
+        "myCertificate":{
+            "Type":"AWS::CertificateManager::Certificate",
+            "Properties":{
+               "DomainName": {"Fn::Sub": "*.${myDomain}"},
+               "DomainValidationOptions": [
+                {
+                    "DomainName": {"Ref": "myDomain"},
+                    "HostedZoneId": {"Ref": "myZone"}
+                }
+               ],
+               "SubjectAlternativeNames" : [ {"Ref": "myDomain"} ],
+               "ValidationMethod":"DNS"
+            }
+        },
+        "myDNS": {
+            "Type": "AWS::Route53::RecordSetGroup",
+            "Properties": {
+                "HostedZoneId": {"Ref": "myZone"},
+                "RecordSets": [
+                    {
+                        "Name": {"Ref": "myDomain"},
+                        "Type": "A",
+                        "AliasTarget": {
+                            "HostedZoneId": "Z2FDTNDATAQYW2",
+                            "DNSName": {
+                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                            }
+                        }
+                    },
+                    {
+                        "Name": {"Ref": "myDomain"},
+                        "Type": "AAAA",
+                        "AliasTarget": {
+                            "HostedZoneId": "Z2FDTNDATAQYW2",
+                            "DNSName": {
+                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                            }
+                        }
+                    },
+                    {
+                        "Name": {"Fn::Sub": "www.${myDomain}"},
+                        "Type": "A",
+                        "AliasTarget": {
+                            "HostedZoneId": "Z2FDTNDATAQYW2",
+                            "DNSName": {
+                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                            }
+                        }
+                    },
+                    {
+                        "Name": {"Fn::Sub": "www.${myDomain}"},
+                        "Type": "AAAA",
+                        "AliasTarget": {
+                            "HostedZoneId": "Z2FDTNDATAQYW2",
+                            "DNSName": {
+                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                            }
+                        }
+                    }
+                ]
+            }
+        },
         "repoBucket": {
             "Type": "AWS::S3::Bucket",
             "DeletionPolicy": "Retain",
@@ -60,6 +132,10 @@
             "Type": "AWS::CloudFront::Distribution",
             "Properties": {
                 "DistributionConfig": {
+                    "Aliases": [
+                        {"Ref": "myDomain"},
+                        {"Fn::Sub": "www.${myDomain}"}
+                    ],
                     "Origins": [
                         {
                             "DomainName": {
@@ -98,7 +174,9 @@
                     "Enabled": "true",
                     "PriceClass": "PriceClass_100",
                     "ViewerCertificate": {
-                        "CloudFrontDefaultCertificate": "true"
+                        "AcmCertificateArn" : {"Ref": "myCertificate"},
+                        "MinimumProtocolVersion" : "TLSv1",
+                        "SslSupportMethod" : "sni-only"
                     }
                 }
             }
@@ -148,7 +226,7 @@
                                     "ConnectionArn": {
                                         "Fn::GetAtt": ["githubConnection", "ConnectionArn"]
                                     },
-                                    "FullRepositoryId": "levicherrin/pipetest",
+                                    "FullRepositoryId": "levicherrin/aws-static-website",
                                     "BranchName": "main"
                                 },
                                 "RunOrder": "1"    
