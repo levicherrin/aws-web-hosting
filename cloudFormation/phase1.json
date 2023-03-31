@@ -1,0 +1,55 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Resources": {
+        "S3Bucket": {
+            "Type": "AWS::S3::Bucket",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+                "PublicAccessBlockConfiguration": {
+                    "BlockPublicAcls" : "false",
+                    "BlockPublicPolicy" : "false",
+                    "IgnorePublicAcls" : "false",
+                    "RestrictPublicBuckets" : "false"
+                },
+                "WebsiteConfiguration": {
+                    "IndexDocument" : "index.html"
+                }
+            }
+        },
+        "BucketPolicyForPublicAccess": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {
+                "Bucket": {
+                    "Ref": "S3Bucket"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "s3:GetObject"
+                            ],
+                            "Effect": "Allow",
+                            "Resource":
+                            {
+                                "Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
+                            },
+                            "Principal": "*"                            
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "WebstieEndpointURL": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "S3Bucket",
+                    "WebsiteURL"
+                ]
+            },
+            "Description": "URL for unsecure access to the website"
+        }
+    }
+}
