@@ -1,4 +1,4 @@
-![Kevin's Website](docs/exampleDomain1.jpg)
+![Example Website](docs/exampleDomain.jpg)
 
 # Website Hosting in AWS
 This repository contains walkthroughs and Infrastructure as Code (IaC) scripts for building robust static website hosting architectures in AWS with features such as:
