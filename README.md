@@ -1,7 +1,7 @@
-![Kevin's Website](docs/kevinlegerwebsite.jpg)
+![Kevin's Website](docs/exampleDomain.jpg)
 
-# Website Hosting in AWS - ft. Photography by Kevin Leger
-This repository contains step-by-step guides and Infrastructure as Code (IaC) scripts for building robust static website hosting architectures in AWS with features such as:
+# Website Hosting in AWS
+This repository contains walkthroughs and Infrastructure as Code (IaC) scripts for building robust static website hosting architectures in AWS with features such as:
 
 - Custom domain integration
 - Accelerated content delivery
@@ -10,7 +10,7 @@ This repository contains step-by-step guides and Infrastructure as Code (IaC) sc
 
 Visit [kevinleger.com](https://kevinleger.com) to check out a live example.
 
-To get started, review the architecture overview to decide on what features to implement for your use case then follow along with deep dives or launch the appropriate [CloudFormation template](cloudFormation/) in AWS.
+To get started, review the architecture overview to decide on what features to implement for your use case then follow along with the deep dives or launch the appropriate [CloudFormation template](cloudFormation/) in AWS.
 
 ## Architecture Overview
 The complete architecture can be seen below and is broken down into phases to separate features from one another.
@@ -21,12 +21,10 @@ The complete architecture can be seen below and is broken down into phases to se
 - Phase4: API GW, Lambda, and SES
 - Phase5: GitHub and CodePipeline 
 
-![Website Architecture](docs/Architecture.jpg)
-
-## Service Descriptions ([link to AWS docs](https://docs.aws.amazon.com/))
+#### Service Descriptions
 <!-- (TOC:collapse=true&collapseText=Click to expand) -->
 <details>
-<summary>Click to expand</summary>
+<summary>(click to expand)</summary>
 
 - **AWS Certificate Manager (ACM)** is a service that lets you easily provision, manage, and deploy public and private Secure Sockets Layer/Transport Layer Security (SSL/TLS) certificates for use with AWS services and your internal connected resources.
 
@@ -48,29 +46,32 @@ The complete architecture can be seen below and is broken down into phases to se
 
 </details>
 
+![Website Architecture](docs/Architecture1.jpg)
+
+
 ## Deep Dive
-This section will cover the implementation of each phase in enough detail for anyone following along and getting their hands dirty. Every button click will not be captured as the AWS management console is pretty easy to follow and services in AWS change console layouts overtime anyway.
+This section will cover the implementation of each phase in enough detail for anyone following along and getting their hands dirty. Every button click will not be captured as the AWS management console is pretty easy to follow and service layouts in the AWS console change overtime anyway.
 
-**NOTE**: Throughout each phase there are 'my' statements which are placeholder values that must be replaced by the actual values specific to your deployment. Example below:
+**NOTE**: Throughout each phase there are `my statements` which are placeholder values that must be replaced by the actual values specific to your deployment. Example below:
 
-`arn:aws:s3:::MY-BUCKET-NAME/* -> arn:aws:s3:::cool-website-123/*`
+`arn:aws:s3:::MY-BUCKET-NAME/*` ------SHOULD BE CHANGED TO------> `arn:aws:s3:::cool-website-123/*`
 
 TODOS:
-- need artifact bucket policy and edit web bucket policy for pipeline?
-- verify what `select extract before deploy` does
+- add authentication and authorization phase(s)
 - review IAM policy permisions for SES
 - review any best practices SES configuration
 - align order of iam statements throughout
 
 ## Phase1 - Getting up and Running
-Why: Quickly deploy a website and have unencrypted access via http with S3
+Why: Quickly deploy a website with an unencrypted connection via HTTP
 
 What:
-1. AWS account
+1. AWS account and IAM user with administrative permissions
 
-2. index document and any supporting assets for the website
+2. index document and any supporting assets for a website
 
 Resources:
+- [Some free website templates](https://html5up.net/)
 - [AWS account getting started](https://docs.aws.amazon.com/accounts/latest/reference/welcome-first-time-user.html)
 - [AWS management console](https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/learn-whats-new.html)
 - [S3 Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html)
@@ -88,7 +89,7 @@ First, navigate to the permissions tab of the bucket and turn off `block all pub
 ![Unblock Access](docs/phase1/blockPublicAccess.jpg)
 
 
-Next, edit the bucket policy to allow any principal to read objects from the bucket.
+Next, edit the bucket policy to allow any principal (symbolized by the asterik) to read objects from the bucket using the S3 `GetObject` action.
 
 ```
 {
@@ -105,20 +106,21 @@ Next, edit the bucket policy to allow any principal to read objects from the buc
 }
 ```
 
-Finally, navigate to the poperties tab and enable static website hosting. Make sure to specify the name of the website's index document which is commonly `index.html`. 
+Finally, navigate to the poperties tab and enable static website hosting. Make sure to specify the name of the website's index document which is commonly referred to as `index.html`. 
 
-Click on the bucket website endpoint to access the site unencrypted via HTTP in a new tab. 
+Click on the bucket website endpoint to access the site via HTTP in a new tab. 
 
 ![Website](docs/phase1/bucketWebsite.jpg)
 
-## Phase2 - Encryption and Accelerated Content Delivery
-Why: Encrypted access via HTTPS, accelerated content delivery, and more with CloudFront
+## Phase2 - Encryption and Caching
+Why: Encrypted connection via HTTPS, accelerated content delivery, origin behavior, and more
 
 What: 
 1. Completed Phase1
 
 Resources:
-- [CloudFront Documentation](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html)
+- [CloudFront docs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html)
+- [S3 endpoint differences](https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteEndpoints.html#WebsiteRestEndpointDiff)
 
 ### Step 1 - Website Bucket
 First, disable static website hosting on the bucket since CloudFront will be setup to use the bucket's REST API endpoint.
@@ -160,12 +162,12 @@ Then edit the bucket policy to redefine the permissions to allow access from the
 }
 ```
 
-Now the website can be accessed via HTTPS with the cloudfront distribution domain name which is located on the details section of the distribution and looks like `hj34l2kdfks.cloudfront.net`.
+Access the website via HTTPS with the cloudfront distribution domain name which is located on the details section of the distribution and looks similar to: `hj34l2kdfks.cloudfront.net`
 
 ![Cloudfront Website](docs/phase2/cloudfrontWebsite.jpg)
 
 ## Phase3 - Custom Domain Name
-Why: Custom domain names provide more intuitive URLs for users to interact with and of course branding. Route 53 also provides capabilties such as routing policies and health checks. 
+Why: more intuitive URLs for users to interact with, branding, and other capabilities with Route 53
 
 What:
 1. Completed phase2
@@ -174,15 +176,15 @@ What:
 
 Resources:
 - [Registering and managing domains](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/registrar.html)
-- [AWS Certificate Manager Docs](https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html)
-- [Route 53 Docs](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html)
-- [CloudFront Documentation](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html)
+- [AWS certificate manager docs](https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html)
+- [Route 53 docs](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html)
+- [CloudFront docs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html)
 
 
 ### Step 1 - ACM
 First, request a new public SSL/TLS certificate entering 
-- wildcard subdomain (e.g., `*.example.com`) in the domain name field.
-- add another domain name this time entering the root domain (e.g., `example.com`). 
+- domain name field set to a wildcard subdomain (e.g., `*.example.com`)
+- then add another domain name this time entering the root domain (e.g., `example.com`)
 
 ![Request Certificate](docs/phase3/requestCertificate.jpg)
 
@@ -211,12 +213,12 @@ Once the ACM certificate moves from pending to issued, edit the CF distribution 
 
 ![Edit Distribution](docs/phase3/editDistribution.jpg)
 
-The website is now accessible from the custom domain via HTTPS.
+The website is now accessible from the custom domain via HTTPS
 
 ![Custom Website](docs/phase3/customDomain.jpg)
 
 ## Phase4 - Contact Form
-Why: Adds the capability for users to contact the website owner
+Why: capability for users to contact an admin or website owner via a designated email address 
 
 What:
 1. Completed phase1
