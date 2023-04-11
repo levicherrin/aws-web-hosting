@@ -1,0 +1,70 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters" : {
+        "myEmail" : {
+          "Type" : "String",
+          "Description" : "Enter your email address for the contactMe Function."
+        }
+    },
+    "Resources": {
+    "ContactMeEmailIdentity": {
+        "Type" : "AWS::SES::EmailIdentity",
+        "Properties" : {
+            "EmailIdentity" : {"Ref": "myEmail"}
+          }
+    },
+    "ContactMeFunction": {
+        "Type" : "AWS::Lambda::Function",
+        "Properties" : {
+            "Architectures" : [ "x86_64" ],
+            "Code" : {
+                "S3Bucket" : "tests-123-123",
+                "S3Key" : "contactForm.zip"
+            },
+            "Handler" : "contactForm.py",
+            "Role" : {
+                "Fn::GetAtt": ["ContactMeFunctionRole", "Arn"]
+            },
+            "Runtime": "python3.9"
+        }
+    },
+    "ContactMeFunctionRole": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [
+                                "lambda.amazonaws.com"
+                            ]
+                        },
+                        "Action": [
+                            "sts:AssumeRole"
+                        ]
+                    }
+                ]
+            },
+            "Policies": [
+                {
+                    "PolicyName": "emailPolicy",
+                    "PolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Action": "ses:SendEmail",
+                                "Resource": "*"
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+
+
+
