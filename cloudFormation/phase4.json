@@ -3,8 +3,20 @@
     "Parameters" : {
         "myEmail" : {
           "Type" : "String",
-          "Description" : "Enter your email address for the contactMe Function."
-        }
+          "Description" : "Enter the email address for the contactMe Function."
+        },
+        "myBucket" : {
+            "Type" : "String",
+            "Description" : "Enter the bucket containing the lambda deployment package."
+        },
+          "myLambdaPackage" : {
+            "Type" : "String",
+            "Description" : "Enter the lambda deployment package name."
+        },
+          "myLambdaHandler" : {
+            "Type" : "String",
+            "Description" : "Enter the python file name for the lambda to call."
+        } 
     },
     "Resources": {
     "ContactMeEmailIdentity": {
@@ -56,6 +68,88 @@
                             {
                                 "Effect": "Allow",
                                 "Action": "ses:SendEmail",
+                                "Resource": "*"
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "ContactMeAPI": {
+        "Type" : "AWS::ApiGateway::RestApi",
+        "Properties" : {
+            "EndpointConfiguration" : {
+                "Types" : [ "REGIONAL" ]
+            },
+            "Name" : "contactMe"
+        }
+    },
+    "ContactMeResource": {
+        "Type" : "AWS::ApiGateway::Resource",
+        "Properties" : {
+            "ParentId" : {"Fn::GetAtt": ["ContactMeAPI", "RootResourceId"]},
+            "PathPart" : "contactMe",
+            "RestApiId" : {"Ref": "ContactMeAPI"}
+          }
+    },
+    "ContactMeMethod": {
+        "Type" : "AWS::ApiGateway::Method",
+        "Properties" : {
+            "ApiKeyRequired" : false,
+            "AuthorizationType" : "NONE",
+            "HttpMethod" : "POST",
+            "Integration" : {
+                "ConnectionType" : "INTERNET",
+                "Credentials" : {"Fn::GetAtt": ["ContactMeApiRole", "Arn"]},
+                "IntegrationHttpMethod" : "POST",
+                "IntegrationResponses" : [
+                    {
+                        "StatusCode" : "200"
+                    }
+                ],
+                "PassthroughBehavior" : "WHEN_NO_MATCH",
+                "Type" : "AWS",
+                "Uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:131148786738:function:ContactFormSendEmail/invocations"
+            },
+            "MethodResponses" : [ 
+                {
+                    "ResponseModels" : {"application/json" : "Empty"},
+                    "StatusCode" : "200"
+                }
+            ],
+            "ResourceId" : {"Ref": "ContactMeResource"},
+            "RestApiId" : {"Ref": "ContactMeAPI"}
+        }
+    },
+    "ContactMeApiRole": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [
+                                "apigateway.amazonaws.com"
+                            ]
+                        },
+                        "Action": [
+                            "sts:AssumeRole"
+                        ]
+                    }
+                ]
+            },
+            "Policies": [
+                {
+                    "PolicyName": "invokeLambdaPolicy",
+                    "PolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Action": "lambda:InvokeFunction",
                                 "Resource": "*"
                             }
                         ]
