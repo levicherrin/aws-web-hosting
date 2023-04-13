@@ -11,154 +11,221 @@
         },
           "myLambdaPackage" : {
             "Type" : "String",
-            "Description" : "Enter the lambda deployment package name."
+            "Description" : "Enter the lambda deployment package name (including .zip)."
         },
           "myLambdaHandler" : {
             "Type" : "String",
             "Description" : "Enter the python file name for the lambda to call."
-        } 
+        },
+        "myStage" : {
+            "Type" : "String",
+            "Description" : "Enter the stage name for contactMe API deployment."
+        }   
     },
     "Resources": {
-    "ContactMeEmailIdentity": {
-        "Type" : "AWS::SES::EmailIdentity",
-        "Properties" : {
-            "EmailIdentity" : {"Ref": "myEmail"}
-          }
-    },
-    "ContactMeFunction": {
-        "Type" : "AWS::Lambda::Function",
-        "Properties" : {
-            "Architectures" : [ "x86_64" ],
-            "Code" : {
-                "S3Bucket" : "tests-123-123",
-                "S3Key" : "contactForm.zip"
-            },
-            "Handler" : "contactForm.py",
-            "Role" : {
-                "Fn::GetAtt": ["ContactMeFunctionRole", "Arn"]
-            },
-            "Runtime": "python3.9"
-        }
-    },
-    "ContactMeFunctionRole": {
-        "Type": "AWS::IAM::Role",
-        "Properties": {
-            "AssumeRolePolicyDocument": {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Principal": {
-                            "Service": [
-                                "lambda.amazonaws.com"
+        "ContactMeEmailIdentity": {
+            "Type" : "AWS::SES::EmailIdentity",
+            "Properties" : {
+                "EmailIdentity" : {"Ref": "myEmail"}
+            }
+        },
+        "ContactMeFunction": {
+            "Type" : "AWS::Lambda::Function",
+            "Properties" : {
+                "Architectures" : [ "x86_64" ],
+                "Code" : {
+                    "S3Bucket" : {"Ref": "myBucket"},
+                    "S3Key" : {"Ref": "myLambdaPackage"}
+                },
+                "Handler" : {"Ref": "myLambdaHandler"},
+                "Role" : {
+                    "Fn::GetAtt": ["ContactMeFunctionRole", "Arn"]
+                },
+                "Runtime": "python3.9"
+            }
+        },
+        "ContactMeFunctionRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "lambda.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
                             ]
-                        },
-                        "Action": [
-                            "sts:AssumeRole"
-                        ]
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyName": "emailPolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "ses:SendEmail",
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
                     }
                 ]
-            },
-            "Policies": [
-                {
-                    "PolicyName": "emailPolicy",
-                    "PolicyDocument": {
-                        "Version": "2012-10-17",
-                        "Statement": [
-                            {
-                                "Effect": "Allow",
-                                "Action": "ses:SendEmail",
-                                "Resource": "*"
+            }
+        },
+        "ContactMeAPI": {
+            "Type" : "AWS::ApiGateway::RestApi",
+            "Properties" : {
+                "EndpointConfiguration" : {
+                    "Types" : [ "REGIONAL" ]
+                },
+                "Name" : "contactMe"
+            }
+        },
+        "ContactMeResource": {
+            "Type" : "AWS::ApiGateway::Resource",
+            "Properties" : {
+                "ParentId" : {"Fn::GetAtt": ["ContactMeAPI", "RootResourceId"]},
+                "PathPart" : "contactMe",
+                "RestApiId" : {"Ref": "ContactMeAPI"}
+            }
+        },
+        "ContactMePost": {
+            "Type" : "AWS::ApiGateway::Method",
+            "Properties" : {
+                "ApiKeyRequired" : false,
+                "AuthorizationType" : "NONE",
+                "HttpMethod" : "POST",
+                "Integration" : {
+                    "ConnectionType" : "INTERNET",
+                    "Credentials" : {"Fn::GetAtt": ["ContactMeApiRole", "Arn"]},
+                    "IntegrationHttpMethod" : "POST",
+                    "IntegrationResponses" : [
+                        {
+                            "StatusCode" : "200",
+                            "ResponseParameters": {
+                                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                                "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
+                                "method.response.header.Access-Control-Allow-Origin": "'*'"
+                            },
+                            "ResponseTemplates": {
+                                "application/json": ""
                             }
-                        ]
-                    }
-                }
-            ]
-        }
-    },
-    "ContactMeAPI": {
-        "Type" : "AWS::ApiGateway::RestApi",
-        "Properties" : {
-            "EndpointConfiguration" : {
-                "Types" : [ "REGIONAL" ]
-            },
-            "Name" : "contactMe"
-        }
-    },
-    "ContactMeResource": {
-        "Type" : "AWS::ApiGateway::Resource",
-        "Properties" : {
-            "ParentId" : {"Fn::GetAtt": ["ContactMeAPI", "RootResourceId"]},
-            "PathPart" : "contactMe",
-            "RestApiId" : {"Ref": "ContactMeAPI"}
-          }
-    },
-    "ContactMeMethod": {
-        "Type" : "AWS::ApiGateway::Method",
-        "Properties" : {
-            "ApiKeyRequired" : false,
-            "AuthorizationType" : "NONE",
-            "HttpMethod" : "POST",
-            "Integration" : {
-                "ConnectionType" : "INTERNET",
-                "Credentials" : {"Fn::GetAtt": ["ContactMeApiRole", "Arn"]},
-                "IntegrationHttpMethod" : "POST",
-                "IntegrationResponses" : [
+                        }
+                    ],
+                    "PassthroughBehavior" : "WHEN_NO_MATCH",
+                    "Type" : "AWS",
+                    "Uri" : {"Fn::Sub" : ["arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${functionArn}/invocations", {"functionArn": {"Fn::GetAtt": ["ContactMeFunction", "Arn"]}}]}
+                },
+                "MethodResponses" : [ 
                     {
-                        "StatusCode" : "200"
+                        "ResponseModels" : {"application/json" : "Empty"},
+                        "StatusCode" : "200",
+                        "ResponseParameters": {
+                            "method.response.header.Access-Control-Allow-Headers": false,
+                            "method.response.header.Access-Control-Allow-Methods": false,
+                            "method.response.header.Access-Control-Allow-Origin": false
+                        }
                     }
                 ],
-                "PassthroughBehavior" : "WHEN_NO_MATCH",
-                "Type" : "AWS",
-                "Uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:131148786738:function:ContactFormSendEmail/invocations"
-            },
-            "MethodResponses" : [ 
-                {
-                    "ResponseModels" : {"application/json" : "Empty"},
-                    "StatusCode" : "200"
-                }
-            ],
-            "ResourceId" : {"Ref": "ContactMeResource"},
-            "RestApiId" : {"Ref": "ContactMeAPI"}
-        }
-    },
-    "ContactMeApiRole": {
-        "Type": "AWS::IAM::Role",
-        "Properties": {
-            "AssumeRolePolicyDocument": {
-                "Version": "2012-10-17",
-                "Statement": [
+                "ResourceId" : {"Ref": "ContactMeResource"},
+                "RestApiId" : {"Ref": "ContactMeAPI"}
+            }
+        },
+        "ContactMeOption": {
+            "Type" : "AWS::ApiGateway::Method",
+            "Properties" : {
+                "ApiKeyRequired" : false,
+                "AuthorizationType" : "NONE",
+                "HttpMethod" : "OPTIONS",
+                "Integration" : {
+                    "IntegrationResponses" : [
+                        {
+                            "StatusCode" : "200",
+                            "ResponseParameters": {
+                                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                                "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
+                                "method.response.header.Access-Control-Allow-Origin": "'*'"
+                            },
+                            "ResponseTemplates": {
+                                "application/json": ""
+                            }
+                        }
+                    ],
+                    "PassthroughBehavior" : "WHEN_NO_MATCH",
+                    "RequestTemplates": {
+                        "application/json": "{\"statusCode\": 200}"
+                    },
+                    "Type" : "MOCK"
+                },
+                "MethodResponses" : [ 
                     {
-                        "Effect": "Allow",
-                        "Principal": {
-                            "Service": [
-                                "apigateway.amazonaws.com"
+                        "ResponseModels" : {"application/json" : "Empty"},
+                        "StatusCode" : "200",
+                        "ResponseParameters": {
+                            "method.response.header.Access-Control-Allow-Headers": false,
+                            "method.response.header.Access-Control-Allow-Methods": false,
+                            "method.response.header.Access-Control-Allow-Origin": false
+                        }
+                    }
+                ],
+                "ResourceId" : {"Ref": "ContactMeResource"},
+                "RestApiId" : {"Ref": "ContactMeAPI"}
+            }
+        },
+        "ContactMeDeployment": {
+            "Type" : "AWS::ApiGateway::Deployment",
+            "DependsOn": [
+                "ContactMePost",
+                "ContactMeOption"
+            ],
+            "Properties" : {
+                "RestApiId" : {"Ref": "ContactMeAPI"},
+                "StageName" : {"Ref": "myStage"}
+            }          
+        },
+        "ContactMeApiRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "apigateway.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
                             ]
-                        },
-                        "Action": [
-                            "sts:AssumeRole"
-                        ]
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyName": "invokeLambdaPolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "lambda:InvokeFunction",
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
                     }
                 ]
-            },
-            "Policies": [
-                {
-                    "PolicyName": "invokeLambdaPolicy",
-                    "PolicyDocument": {
-                        "Version": "2012-10-17",
-                        "Statement": [
-                            {
-                                "Effect": "Allow",
-                                "Action": "lambda:InvokeFunction",
-                                "Resource": "*"
-                            }
-                        ]
-                    }
-                }
-            ]
+            }
         }
     }
 }
-
-
-
