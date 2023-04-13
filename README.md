@@ -5,7 +5,7 @@ This repository contains walkthroughs and Infrastructure as Code (IaC) scripts f
 
 - Custom domain integration
 - Accelerated content delivery
-- Continuous Delivery (CD) pipeline
+- Continuous Deployment (CD) pipeline
 - Contact form backend and more
 
 Visit [kevinleger.com](https://kevinleger.com) to check out a live example.
@@ -57,10 +57,13 @@ This section will cover the implementation of each phase in enough detail for an
 `arn:aws:s3:::MY-BUCKET-NAME/*` ------SHOULD BE CHANGED TO------> `arn:aws:s3:::cool-website-123/*`
 
 TODOS:
+- master cfn template and adjust previous phases (CF baseline?)
 - add authentication and authorization phase(s)
+- add server-based hosting content
 - review IAM policy permisions for SES
 - review any best practices SES configuration
 - align order of iam statements throughout
+- review lambda proxy integration for contactForm
 
 ## Phase1 - Getting up and Running
 Why: Quickly deploy a website with an unencrypted connection via HTTP
@@ -298,13 +301,14 @@ def lambda_handler(event, context):
         Message = {'Subject':{
                'Data':'New Communication From MY-WEBSITE',
                'Charset':'UTF-8'
-           },
+            },
            'Body':{
                'Text':{
                    'Data':body,
                    'Charset':'UTF-8'
                }
-           }}
+           }
+        }   
     )
     return{'statusCode': 200,'body': json.dumps('wohoo!, Email sent successfully')}
 ```
@@ -351,7 +355,7 @@ With the API created, click actions and deploy the API. Then navigate to the sta
 Finally, copy the POST invoke url and include the url in the website's contact form script. The invoke url should look similar to `https://dfh341235s.execute-api.us-east-1.amazonaws.com/01/contactme`
 
 
-## Phase5 - Continuous Delivery and Version Control
+## Phase5 - Continuous Deployment and Version Control
 Why: Automate deployment of website changes
 
 What:
