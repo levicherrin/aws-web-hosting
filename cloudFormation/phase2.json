@@ -1,7 +1,7 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
     "Resources": {
-        "S3Bucket": {
+        "webBucket": {
             "Type": "AWS::S3::Bucket",
             "DeletionPolicy": "Retain",
             "Properties": {
@@ -17,7 +17,7 @@
             "Type": "AWS::S3::BucketPolicy",
             "Properties": {
                 "Bucket": {
-                    "Ref": "S3Bucket"
+                    "Ref": "webBucket"
                 },
                 "PolicyDocument": {
                     "Version": "2012-10-17",
@@ -29,14 +29,14 @@
                             "Effect": "Allow",
                             "Resource":
                             {
-                                "Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
+                                "Fn::Sub": "arn:aws:s3:::${webBucket}/*"
                             },
                             "Principal": {
                                 "Service": "cloudfront.amazonaws.com"
                             },
                             "Condition": {
                                 "StringEquals": {
-                                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudFrontDistribution}"}
+                                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudfrontDistribution}"}
                                 }
                             }
                         }
@@ -44,16 +44,27 @@
                 }
             }
         },
-        "cloudfrontdistribution": {
+        "originAccessControl": {
+            "Type": "AWS::CloudFront::OriginAccessControl",
+            "Properties":{
+                "OriginAccessControlConfig": {
+                    "Name": {"Ref": "AWS::StackName"},
+                    "OriginAccessControlOriginType": "s3",
+                    "SigningBehavior": "always",
+                    "SigningProtocol": "sigv4"
+                }
+            }
+        },
+        "cloudfrontDistribution": {
             "Type": "AWS::CloudFront::Distribution",
             "Properties": {
                 "DistributionConfig": {
                     "Origins": [
                         {
                             "DomainName": {
-                                "Fn::GetAtt" : [ "S3Bucket", "DomainName"]
+                                "Fn::GetAtt" : [ "webBucket", "DomainName"]
                             },
-                            "Id": "myStaticSite",
+                            "Id": "myWebsite",
                             "S3OriginConfig": {
                             },
                             "OriginAccessControlId": {
@@ -70,48 +81,30 @@
                             "GET",
                             "HEAD"
                         ],
+                        "CachePolicyId" : "658327ea-f89d-4fab-a63d-7e88639e58f6",
                         "Compress": true,
-                        "DefaultTTL": 86400,
-                        "ForwardedValues": {
-                            "Cookies" : {"Forward": "none"},
-                            "QueryString" : "false"
-                        },
-                        "MaxTTL": 3153600,
-                        "SmoothStreaming": false,
-                        "TargetOriginId": "myStaticSite",
+                        "TargetOriginId": "myWebsite",
                         "ViewerProtocolPolicy": "redirect-to-https"
 
                     },
                     "DefaultRootObject" : "index.html",
                     "Enabled": "true",
-                    "PriceClass": "PriceClass_100",
                     "ViewerCertificate": {
                         "CloudFrontDefaultCertificate": "true"
                     }
-                }
-            }
-        },
-        "originAccessControl": {
-            "Type": "AWS::CloudFront::OriginAccessControl",
-            "Properties":{
-                "OriginAccessControlConfig": {
-                    "Name": {"Ref": "AWS::StackName"},
-                    "OriginAccessControlOriginType": "s3",
-                    "SigningBehavior": "always",
-                    "SigningProtocol": "sigv4"
                 }
             }
         }
     },
     "Outputs": {
         "CDNURL": {
+            "Description": "URL for secure access to the website",
             "Value": {
                 "Fn::GetAtt": [
-                    "cloudfrontdistribution",
+                    "cloudfrontDistribution",
                     "DomainName"
                 ]
-            },
-            "Description": "URL for secure access to CDN"
+            }
         }
     }
 }
