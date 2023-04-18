@@ -1,7 +1,7 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
     "Resources": {
-        "S3Bucket": {
+        "webBucket": {
             "Type": "AWS::S3::Bucket",
             "DeletionPolicy": "Retain",
             "Properties": {
@@ -20,7 +20,7 @@
             "Type": "AWS::S3::BucketPolicy",
             "Properties": {
                 "Bucket": {
-                    "Ref": "S3Bucket"
+                    "Ref": "webBucket"
                 },
                 "PolicyDocument": {
                     "Version": "2012-10-17",
@@ -32,7 +32,7 @@
                             "Effect": "Allow",
                             "Resource":
                             {
-                                "Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
+                                "Fn::Sub": "arn:aws:s3:::${webBucket}/*"
                             },
                             "Principal": "*"                            
                         }
@@ -45,7 +45,7 @@
         "WebstieEndpointURL": {
             "Value": {
                 "Fn::GetAtt": [
-                    "S3Bucket",
+                    "webBucket",
                     "WebsiteURL"
                 ]
             },
