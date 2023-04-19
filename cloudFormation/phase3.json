@@ -1,19 +1,18 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Resources": {
-        "repoBucket": {
-            "Type": "AWS::S3::Bucket",
-            "DeletionPolicy": "Retain",
-            "Properties": {
-                "PublicAccessBlockConfiguration": {
-                    "BlockPublicAcls" : "true",
-                    "BlockPublicPolicy" : "true",
-                    "IgnorePublicAcls" : "true",
-                    "RestrictPublicBuckets" : "true"
-                }
-            }
+    "Parameters" : {
+        "myZone" : {
+          "Type" : "String",
+          "Description" : "Enter the Route53 Hosted Zone ID"
         },
-        "artBucket": {
+        "myCustomDomain" : {
+            "Type" : "String",
+            "Default" : "example.com",
+            "Description" : "Enter the custom root domain name"
+        }
+    },
+    "Resources": {
+        "webBucket": {
             "Type": "AWS::S3::Bucket",
             "DeletionPolicy": "Retain",
             "Properties": {
@@ -29,7 +28,7 @@
             "Type": "AWS::S3::BucketPolicy",
             "Properties": {
                 "Bucket": {
-                    "Ref": "repoBucket"
+                    "Ref": "webBucket"
                 },
                 "PolicyDocument": {
                     "Version": "2012-10-17",
@@ -41,14 +40,14 @@
                             "Effect": "Allow",
                             "Resource":
                             {
-                                "Fn::Sub": "arn:aws:s3:::${repoBucket}/*"
+                                "Fn::Sub": "arn:aws:s3:::${webBucket}/*"
                             },
                             "Principal": {
                                 "Service": "cloudfront.amazonaws.com"
                             },
                             "Condition": {
                                 "StringEquals": {
-                                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudFrontDistribution}"}
+                                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudfrontDistribution}"}
                                 }
                             }
                         }
@@ -56,16 +55,27 @@
                 }
             }
         },
-        "cloudFrontDistribution": {
+        "originAccessControl": {
+            "Type": "AWS::CloudFront::OriginAccessControl",
+            "Properties":{
+                "OriginAccessControlConfig": {
+                    "Name": {"Ref": "AWS::StackName"},
+                    "OriginAccessControlOriginType": "s3",
+                    "SigningBehavior": "always",
+                    "SigningProtocol": "sigv4"
+                }
+            }
+        },
+        "cloudfrontDistribution": {
             "Type": "AWS::CloudFront::Distribution",
             "Properties": {
                 "DistributionConfig": {
                     "Origins": [
                         {
                             "DomainName": {
-                                "Fn::GetAtt" : [ "repoBucket", "DomainName"]
+                                "Fn::GetAtt" : [ "webBucket", "DomainName"]
                             },
-                            "Id": "myStaticSite",
+                            "Id": "myWebsite",
                             "S3OriginConfig": {
                             },
                             "OriginAccessControlId": {
@@ -82,164 +92,92 @@
                             "GET",
                             "HEAD"
                         ],
+                        "CachePolicyId" : "658327ea-f89d-4fab-a63d-7e88639e58f6",
                         "Compress": true,
-                        "DefaultTTL": 86400,
-                        "ForwardedValues": {
-                            "Cookies" : {"Forward": "none"},
-                            "QueryString" : "false"
-                        },
-                        "MaxTTL": 3153600,
-                        "SmoothStreaming": false,
-                        "TargetOriginId": "myStaticSite",
+                        "TargetOriginId": "myWebsite",
                         "ViewerProtocolPolicy": "redirect-to-https"
 
                     },
                     "DefaultRootObject" : "index.html",
                     "Enabled": "true",
-                    "PriceClass": "PriceClass_100",
                     "ViewerCertificate": {
                         "CloudFrontDefaultCertificate": "true"
                     }
                 }
             }
         },
-        "githubConnection": {
-            "Type": "AWS::CodeStarConnections::Connection",
-            "Properties": {
-                "ConnectionName": "MyConnection",
-                "ProviderType": "GitHub",
-                "Tags": [
-                    {
-                        "Key": "Project",
-                        "Value": "ProjectB"
-                    }
-                ]
+        "myCertificate":{
+            "Type":"AWS::CertificateManager::Certificate",
+            "Properties":{
+               "DomainName": {"Fn::Sub": "*.${myCustomDomain}"},
+               "DomainValidationOptions": [
+                {
+                    "DomainName": {"Ref": "myCustomDomain"},
+                    "HostedZoneId": {"Ref": "myZone"}
+                }
+               ],
+               "SubjectAlternativeNames" : [ {"Ref": "myCustomDomain"} ],
+               "ValidationMethod":"DNS"
             }
         },
-        "myPipeline": {
-            "Type" : "AWS::CodePipeline::Pipeline",
-            "Properties" : {
-                "ArtifactStore": {
-                    "Location" : {"Ref": "artBucket"},
-                    "Type" : "S3"
-                },
-                "RoleArn": {
-                    "Fn::GetAtt": ["pipelineRole", "Arn"]
-                },
-                "Stages": [
+        "myDNS": {
+            "Type": "AWS::Route53::RecordSetGroup",
+            "Properties": {
+                "HostedZoneId": {"Ref": "myZone"},
+                "RecordSets": [
                     {
-                        "Name": "Source",
-                        "Actions": [
-                            {
-                                "Name": "Source",
-                                "InputArtifacts": [],
-                                "ActionTypeId": {
-                                    "Category": "Source",
-                                    "Owner" : "AWS",
-                                    "Provider" : "CodeStarSourceConnection",
-                                    "Version" : "1"
-                                },
-                                "OutputArtifacts": [
-                                    {
-                                        "Name": "SourceArtifact" 
-                                    }
-                                ],
-                                "Configuration": {
-                                    "ConnectionArn": {
-                                        "Fn::GetAtt": ["githubConnection", "ConnectionArn"]
-                                    },
-                                    "FullRepositoryId": "levicherrin/pipetest",
-                                    "BranchName": "main"
-                                },
-                                "RunOrder": "1"    
+                        "Name": {"Ref": "myCustomDomain"},
+                        "Type": "A",
+                        "AliasTarget": {
+                            "HostedZoneId": "Z2FDTNDATAQYW2",
+                            "DNSName": {
+                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
                             }
-                        ]
+                        }
                     },
                     {
-                        "Name": "Deploy",
-                        "Actions": [
-                            {
-                                "Name": "Deploy",
-                                "InputArtifacts": [
-                                    {
-                                        "Name": "SourceArtifact" 
-                                    }
-                                ],
-                                "ActionTypeId": {
-                                    "Category": "Deploy",
-                                    "Owner" : "AWS",
-                                    "Provider" : "S3",
-                                    "Version" : "1"
-                                },
-                                "Configuration": {
-                                    "BucketName": {"Ref": "repoBucket"},
-                                    "Extract": "true"
-                                },
-                                "RunOrder": "1"
+                        "Name": {"Ref": "myCustomDomain"},
+                        "Type": "AAAA",
+                        "AliasTarget": {
+                            "HostedZoneId": "Z2FDTNDATAQYW2",
+                            "DNSName": {
+                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
                             }
-                        ]
-                    }
-
-                ]
-            }
-        },
-        "pipelineRole": {
-            "Type": "AWS::IAM::Role",
-            "Properties": {
-                "AssumeRolePolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Principal": {
-                                "Service": [
-                                    "codepipeline.amazonaws.com"
-                                ]
-                            },
-                            "Action": [
-                                "sts:AssumeRole"
-                            ]
                         }
-                    ]
-                },
-                "Policies": [
+                    },
                     {
-                        "PolicyName": "pipePolicy",
-                        "PolicyDocument": {
-                            "Version": "2012-10-17",
-                            "Statement": [
-                                {
-                                    "Effect": "Allow",
-                                    "Action": "*",
-                                    "Resource": "*"
-                                }
-                            ]
+                        "Name": {"Fn::Sub": "www.${myCustomDomain}"},
+                        "Type": "A",
+                        "AliasTarget": {
+                            "HostedZoneId": "Z2FDTNDATAQYW2",
+                            "DNSName": {
+                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                            }
+                        }
+                    },
+                    {
+                        "Name": {"Fn::Sub": "www.${myCustomDomain}"},
+                        "Type": "AAAA",
+                        "AliasTarget": {
+                            "HostedZoneId": "Z2FDTNDATAQYW2",
+                            "DNSName": {
+                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                            }
                         }
                     }
                 ]
-            }
-        },
-        "originAccessControl": {
-            "Type": "AWS::CloudFront::OriginAccessControl",
-            "Properties":{
-                "OriginAccessControlConfig": {
-                    "Name": {"Ref": "AWS::StackName"},
-                    "OriginAccessControlOriginType": "s3",
-                    "SigningBehavior": "always",
-                    "SigningProtocol": "sigv4"
-                }
             }
         }
     },
     "Outputs": {
         "CDNURL": {
+            "Description": "URL for secure access to the website",
             "Value": {
                 "Fn::GetAtt": [
-                    "cloudFrontDistribution",
+                    "cloudfrontDistribution",
                     "DomainName"
                 ]
-            },
-            "Description": "URL for secure access to CDN"
+            }
         }
     }
 }
