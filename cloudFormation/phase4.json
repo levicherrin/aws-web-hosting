@@ -3,26 +3,124 @@
     "Parameters" : {
         "myEmail" : {
           "Type" : "String",
-          "Description" : "Enter the email address for the contactMe Function."
+          "Default" : "johndoe@example.com",
+          "Description" : "Enter an email address for the contactMe Function"
         },
         "myBucket" : {
             "Type" : "String",
-            "Description" : "Enter the bucket containing the lambda deployment package."
+            "Description" : "Enter the bucket name where the lambda deployment package is stored"
         },
           "myLambdaPackage" : {
             "Type" : "String",
-            "Description" : "Enter the lambda deployment package name (including .zip)."
+            "Default" : "contactForm.zip",
+            "Description" : "Enter the lambda deployment package name (including .zip)"
         },
           "myLambdaHandler" : {
             "Type" : "String",
-            "Description" : "Enter the python file name for the lambda to call."
+            "Default" : "contactForm.lambda_handler",
+            "Description" : "Enter the python file name for the lambda to call"
         },
         "myStage" : {
             "Type" : "String",
-            "Description" : "Enter the stage name for contactMe API deployment."
+            "Default" : "dev",
+            "Description" : "Enter a stage name for contactMe API deployment"
         }   
     },
     "Resources": {
+        "webBucket": {
+            "Type": "AWS::S3::Bucket",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+                "PublicAccessBlockConfiguration": {
+                    "BlockPublicAcls" : "true",
+                    "BlockPublicPolicy" : "true",
+                    "IgnorePublicAcls" : "true",
+                    "RestrictPublicBuckets" : "true"
+                }
+            }
+        },
+        "BucketPolicyForOac": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {
+                "Bucket": {
+                    "Ref": "webBucket"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "s3:GetObject"
+                            ],
+                            "Effect": "Allow",
+                            "Resource":
+                            {
+                                "Fn::Sub": "arn:aws:s3:::${webBucket}/*"
+                            },
+                            "Principal": {
+                                "Service": "cloudfront.amazonaws.com"
+                            },
+                            "Condition": {
+                                "StringEquals": {
+                                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudfrontDistribution}"}
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "originAccessControl": {
+            "Type": "AWS::CloudFront::OriginAccessControl",
+            "Properties":{
+                "OriginAccessControlConfig": {
+                    "Name": {"Ref": "AWS::StackName"},
+                    "OriginAccessControlOriginType": "s3",
+                    "SigningBehavior": "always",
+                    "SigningProtocol": "sigv4"
+                }
+            }
+        },
+        "cloudfrontDistribution": {
+            "Type": "AWS::CloudFront::Distribution",
+            "Properties": {
+                "DistributionConfig": {
+                    "Origins": [
+                        {
+                            "DomainName": {
+                                "Fn::GetAtt" : [ "webBucket", "DomainName"]
+                            },
+                            "Id": "myWebsite",
+                            "S3OriginConfig": {
+                            },
+                            "OriginAccessControlId": {
+                                "Fn::GetAtt" : [ "originAccessControl", "Id"]
+                            }
+                        }
+                    ],
+                    "DefaultCacheBehavior": {
+                        "AllowedMethods": [
+                            "GET",
+                            "HEAD"
+                        ],
+                        "CachedMethods": [
+                            "GET",
+                            "HEAD"
+                        ],
+                        "CachePolicyId" : "658327ea-f89d-4fab-a63d-7e88639e58f6",
+                        "Compress": true,
+                        "TargetOriginId": "myWebsite",
+                        "ViewerProtocolPolicy": "redirect-to-https"
+
+                    },
+                    "DefaultRootObject" : "index.html",
+                    "Enabled": "true",
+                    "ViewerCertificate": {
+                        "CloudFrontDefaultCertificate": "true"
+                    }
+                }
+            }
+        },
         "ContactMeEmailIdentity": {
             "Type" : "AWS::SES::EmailIdentity",
             "Properties" : {
@@ -225,6 +323,23 @@
                         }
                     }
                 ]
+            }
+        }
+    },
+    "Outputs": {
+        "CDNURL": {
+            "Description": "URL for secure access to the website",
+            "Value": {
+                "Fn::GetAtt": [
+                    "cloudfrontDistribution",
+                    "DomainName"
+                ]
+            }
+        },
+        "stageEndpoint": {
+            "Description": "Invoke URL for stage endpoint",
+            "Value": {
+                "Fn::Sub": "https://${ContactMeAPI}.execute-api.${AWS::Region}.amazonaws.com/${myStage}/contactMe"
             }
         }
     }
