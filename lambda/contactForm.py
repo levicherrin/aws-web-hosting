@@ -1,9 +1,12 @@
 import json
 import boto3
+
+ses = boto3.client('ses')
+
 def lambda_handler(event, context):
-    ses = boto3.client('ses')
     print(event['name'])
     body = 'Name : ' + event['name'] + '\n Email : ' + event['email'] + '\n Message : ' +event['desc']
+    
     ses.send_email(
         Source = 'MY-SOURCE-EMAIL',
         Destination = {'ToAddresses': ['MY-DESTINATION-EMAIL']},
@@ -16,6 +19,8 @@ def lambda_handler(event, context):
                    'Data':body,
                    'Charset':'UTF-8'
                }
-           }}
+           }
+        }
     )
+
     return{'statusCode': 200,'body': json.dumps('wohoo!, Email sent successfully')}
