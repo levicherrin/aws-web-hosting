@@ -70,6 +70,10 @@
             "Type": "AWS::CloudFront::Distribution",
             "Properties": {
                 "DistributionConfig": {
+                    "Aliases": [
+                        {"Ref": "myCustomDomain"},
+                        {"Fn::Sub": "www.${myCustomDomain}"}
+                    ],
                     "Origins": [
                         {
                             "DomainName": {
@@ -101,7 +105,9 @@
                     "DefaultRootObject" : "index.html",
                     "Enabled": "true",
                     "ViewerCertificate": {
-                        "CloudFrontDefaultCertificate": "true"
+                        "AcmCertificateArn" : {"Ref": "myCertificate"},
+                        "MinimumProtocolVersion" : "TLSv1",
+                        "SslSupportMethod" : "sni-only"
                     }
                 }
             }
@@ -131,7 +137,7 @@
                         "AliasTarget": {
                             "HostedZoneId": "Z2FDTNDATAQYW2",
                             "DNSName": {
-                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                                "Fn::GetAtt" : [ "cloudfrontDistribution", "DomainName"]
                             }
                         }
                     },
@@ -141,7 +147,7 @@
                         "AliasTarget": {
                             "HostedZoneId": "Z2FDTNDATAQYW2",
                             "DNSName": {
-                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                                "Fn::GetAtt" : [ "cloudfrontDistribution", "DomainName"]
                             }
                         }
                     },
@@ -151,7 +157,7 @@
                         "AliasTarget": {
                             "HostedZoneId": "Z2FDTNDATAQYW2",
                             "DNSName": {
-                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                                "Fn::GetAtt" : [ "cloudfrontDistribution", "DomainName"]
                             }
                         }
                     },
@@ -161,7 +167,7 @@
                         "AliasTarget": {
                             "HostedZoneId": "Z2FDTNDATAQYW2",
                             "DNSName": {
-                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
+                                "Fn::GetAtt" : [ "cloudfrontDistribution", "DomainName"]
                             }
                         }
                     }
