@@ -1,91 +1,19 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
     "Parameters" : {
-        "myZone" : {
+        "myRepo" : {
           "Type" : "String",
-          "Description" : "Enter your Route53 Hosted Zone ID."
+          "Default" : "johndoe/website-repo",
+          "Description" : "Enter the GitHub accountName/repoName storing the website files"
         },
-        "myDomain" : {
+        "myBranch" : {
             "Type" : "String",
-            "Description" : "Enter your custom apex domain (e.g. example.com)."
-          }
+            "Default" : "main",
+            "Description" : "Enter the appropriate branch name associated with myRepo"
+        }
       },
     "Resources": {
-        "myCertificate":{
-            "Type":"AWS::CertificateManager::Certificate",
-            "Properties":{
-               "DomainName": {"Fn::Sub": "*.${myDomain}"},
-               "DomainValidationOptions": [
-                {
-                    "DomainName": {"Ref": "myDomain"},
-                    "HostedZoneId": {"Ref": "myZone"}
-                }
-               ],
-               "SubjectAlternativeNames" : [ {"Ref": "myDomain"} ],
-               "ValidationMethod":"DNS"
-            }
-        },
-        "myDNS": {
-            "Type": "AWS::Route53::RecordSetGroup",
-            "Properties": {
-                "HostedZoneId": {"Ref": "myZone"},
-                "RecordSets": [
-                    {
-                        "Name": {"Ref": "myDomain"},
-                        "Type": "A",
-                        "AliasTarget": {
-                            "HostedZoneId": "Z2FDTNDATAQYW2",
-                            "DNSName": {
-                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
-                            }
-                        }
-                    },
-                    {
-                        "Name": {"Ref": "myDomain"},
-                        "Type": "AAAA",
-                        "AliasTarget": {
-                            "HostedZoneId": "Z2FDTNDATAQYW2",
-                            "DNSName": {
-                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
-                            }
-                        }
-                    },
-                    {
-                        "Name": {"Fn::Sub": "www.${myDomain}"},
-                        "Type": "A",
-                        "AliasTarget": {
-                            "HostedZoneId": "Z2FDTNDATAQYW2",
-                            "DNSName": {
-                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
-                            }
-                        }
-                    },
-                    {
-                        "Name": {"Fn::Sub": "www.${myDomain}"},
-                        "Type": "AAAA",
-                        "AliasTarget": {
-                            "HostedZoneId": "Z2FDTNDATAQYW2",
-                            "DNSName": {
-                                "Fn::GetAtt" : [ "cloudFrontDistribution", "DomainName"]
-                            }
-                        }
-                    }
-                ]
-            }
-        },
-        "repoBucket": {
-            "Type": "AWS::S3::Bucket",
-            "DeletionPolicy": "Retain",
-            "Properties": {
-                "PublicAccessBlockConfiguration": {
-                    "BlockPublicAcls" : "true",
-                    "BlockPublicPolicy" : "true",
-                    "IgnorePublicAcls" : "true",
-                    "RestrictPublicBuckets" : "true"
-                }
-            }
-        },
-        "artBucket": {
+        "webBucket": {
             "Type": "AWS::S3::Bucket",
             "DeletionPolicy": "Retain",
             "Properties": {
@@ -101,7 +29,7 @@
             "Type": "AWS::S3::BucketPolicy",
             "Properties": {
                 "Bucket": {
-                    "Ref": "repoBucket"
+                    "Ref": "webBucket"
                 },
                 "PolicyDocument": {
                     "Version": "2012-10-17",
@@ -113,14 +41,14 @@
                             "Effect": "Allow",
                             "Resource":
                             {
-                                "Fn::Sub": "arn:aws:s3:::${repoBucket}/*"
+                                "Fn::Sub": "arn:aws:s3:::${webBucket}/*"
                             },
                             "Principal": {
                                 "Service": "cloudfront.amazonaws.com"
                             },
                             "Condition": {
                                 "StringEquals": {
-                                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudFrontDistribution}"}
+                                    "AWS:SourceArn": {"Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudfrontDistribution}"}
                                 }
                             }
                         }
@@ -128,20 +56,27 @@
                 }
             }
         },
-        "cloudFrontDistribution": {
+        "originAccessControl": {
+            "Type": "AWS::CloudFront::OriginAccessControl",
+            "Properties":{
+                "OriginAccessControlConfig": {
+                    "Name": {"Ref": "AWS::StackName"},
+                    "OriginAccessControlOriginType": "s3",
+                    "SigningBehavior": "always",
+                    "SigningProtocol": "sigv4"
+                }
+            }
+        },
+        "cloudfrontDistribution": {
             "Type": "AWS::CloudFront::Distribution",
             "Properties": {
                 "DistributionConfig": {
-                    "Aliases": [
-                        {"Ref": "myDomain"},
-                        {"Fn::Sub": "www.${myDomain}"}
-                    ],
                     "Origins": [
                         {
                             "DomainName": {
-                                "Fn::GetAtt" : [ "repoBucket", "DomainName"]
+                                "Fn::GetAtt" : [ "webBucket", "DomainName"]
                             },
-                            "Id": "myStaticSite",
+                            "Id": "myWebsite",
                             "S3OriginConfig": {
                             },
                             "OriginAccessControlId": {
@@ -158,40 +93,37 @@
                             "GET",
                             "HEAD"
                         ],
+                        "CachePolicyId" : "658327ea-f89d-4fab-a63d-7e88639e58f6",
                         "Compress": true,
-                        "DefaultTTL": 86400,
-                        "ForwardedValues": {
-                            "Cookies" : {"Forward": "none"},
-                            "QueryString" : "false"
-                        },
-                        "MaxTTL": 3153600,
-                        "SmoothStreaming": false,
-                        "TargetOriginId": "myStaticSite",
+                        "TargetOriginId": "myWebsite",
                         "ViewerProtocolPolicy": "redirect-to-https"
 
                     },
                     "DefaultRootObject" : "index.html",
                     "Enabled": "true",
-                    "PriceClass": "PriceClass_100",
                     "ViewerCertificate": {
-                        "AcmCertificateArn" : {"Ref": "myCertificate"},
-                        "MinimumProtocolVersion" : "TLSv1",
-                        "SslSupportMethod" : "sni-only"
+                        "CloudFrontDefaultCertificate": "true"
                     }
                 }
             }
         },
-        "githubConnection": {
+        "artBucket": {
+            "Type": "AWS::S3::Bucket",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+                "PublicAccessBlockConfiguration": {
+                    "BlockPublicAcls" : "true",
+                    "BlockPublicPolicy" : "true",
+                    "IgnorePublicAcls" : "true",
+                    "RestrictPublicBuckets" : "true"
+                }
+            }
+        },
+        "myConnection": {
             "Type": "AWS::CodeStarConnections::Connection",
             "Properties": {
-                "ConnectionName": "MyConnection",
-                "ProviderType": "GitHub",
-                "Tags": [
-                    {
-                        "Key": "Project",
-                        "Value": "ProjectB"
-                    }
-                ]
+                "ConnectionName": "myConnection",
+                "ProviderType": "GitHub"
             }
         },
         "myPipeline": {
@@ -224,10 +156,10 @@
                                 ],
                                 "Configuration": {
                                     "ConnectionArn": {
-                                        "Fn::GetAtt": ["githubConnection", "ConnectionArn"]
+                                        "Fn::GetAtt": ["myConnection", "ConnectionArn"]
                                     },
-                                    "FullRepositoryId": "levicherrin/aws-static-website",
-                                    "BranchName": "main"
+                                    "FullRepositoryId": {"Ref": "myRepo"},
+                                    "BranchName": {"Ref": "myBranch"}
                                 },
                                 "RunOrder": "1"    
                             }
@@ -250,7 +182,7 @@
                                     "Version" : "1"
                                 },
                                 "Configuration": {
-                                    "BucketName": {"Ref": "repoBucket"},
+                                    "BucketName": {"Ref": "webBucket"},
                                     "Extract": "true"
                                 },
                                 "RunOrder": "1"
@@ -287,37 +219,45 @@
                             "Version": "2012-10-17",
                             "Statement": [
                                 {
-                                    "Effect": "Allow",
-                                    "Action": "*",
-                                    "Resource": "*"
+                                    "Action": [
+                                        "codestar-connections:UseConnection"
+                                    ],
+                                    "Resource": {"Ref": "myConnection"},
+                                    "Effect": "Allow"
+                                },
+                                {
+                                    "Action": [
+                                        "s3:PutObject"
+                                    ],
+                                    "Resource": [
+                                        {"Fn::Sub": "arn:aws:s3:::${webBucket}/*"},
+                                        {"Fn::Sub": "arn:aws:s3:::${artBucket}/*"}
+                                    ],
+                                    "Effect": "Allow"
+                                },
+                                {
+                                    "Action": [
+                                        "s3:GetObject"
+                                    ],
+                                    "Resource": {"Fn::Sub": "arn:aws:s3:::${artBucket}/*"},
+                                    "Effect": "Allow"
                                 }
                             ]
                         }
                     }
                 ]
             }
-        },
-        "originAccessControl": {
-            "Type": "AWS::CloudFront::OriginAccessControl",
-            "Properties":{
-                "OriginAccessControlConfig": {
-                    "Name": {"Ref": "AWS::StackName"},
-                    "OriginAccessControlOriginType": "s3",
-                    "SigningBehavior": "always",
-                    "SigningProtocol": "sigv4"
-                }
-            }
         }
     },
     "Outputs": {
         "CDNURL": {
+            "Description": "URL for secure access to the website",
             "Value": {
                 "Fn::GetAtt": [
-                    "cloudFrontDistribution",
+                    "cloudfrontDistribution",
                     "DomainName"
                 ]
-            },
-            "Description": "URL for secure access to CDN"
+            }
         }
     }
 }
