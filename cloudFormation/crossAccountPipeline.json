@@ -1,0 +1,431 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters" : {
+        "myRepo" : {
+          "Type" : "String",
+          "Default" : "johndoe/website-repo",
+          "Description" : "Enter the GitHub accountName/repoName storing the website files"
+        },
+        "myBranch" : {
+            "Type" : "String",
+            "Default" : "main",
+            "Description" : "Enter the appropriate branch name associated with myRepo"
+        },
+        "prodAccount" : {
+            "Type" : "String",
+            "Default" : "",
+            "Description" : "Enter the prod account ID"
+        }
+      },
+    "Resources": {
+        "KMSKey": {
+            "Type": "AWS::KMS::Key",
+            "Properties": {
+                "EnableKeyRotation": true,
+                "KeyPolicy": {
+                    "Version": "2012-10-17",
+                    "Id": "pipeline-kms-key",
+                    "Statement": [
+                        {
+                            "Sid": "Allows admin of the key",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": {"Fn::Sub": "arn:aws:iam::${AWS::AccountId}:root"}
+                            },
+                            "Action": [
+                                "kms:*"
+                            ],
+                            "Resource": "*"
+                        },
+                        {
+                            "Sid": "Allow use of the key from the other accounts",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": [
+                                    {
+                                        "Fn::Sub": "arn:aws:iam::${prodAccount}:root"
+                                    },
+                                    {
+                                        "Fn::GetAtt": ["pipelineRole", "Arn"]
+                                    }
+                                ]
+                            },
+                            "Action": [
+                                "kms:Encrypt",
+                                "kms:Decrypt",
+                                "kms:ReEncrypt*",
+                                "kms:GenerateDataKey*",
+                                "kms:DescribeKey"
+                            ],
+                            "Resource": "*"
+                        }
+                    ]
+                }
+            }
+        },
+        "KMSAlias": {
+            "Type": "AWS::KMS::Alias",
+            "Properties": {
+                "AliasName": "alias/codepipeline-crossaccounts",
+                "TargetKeyId": {"Ref": "KMSKey"}
+            }
+        },
+        "artBucket": {
+            "Type": "AWS::S3::Bucket",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+                "PublicAccessBlockConfiguration": {
+                    "BlockPublicAcls" : "true",
+                    "BlockPublicPolicy" : "true",
+                    "IgnorePublicAcls" : "true",
+                    "RestrictPublicBuckets" : "true"
+                }
+            }
+        },
+        "artBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {
+                "Bucket": {
+                    "Ref": "artBucket"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "s3:*"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": [
+                                {
+                                    "Fn::Sub": "arn:aws:s3:::${artBucket}"
+                                },
+                                {
+                                    "Fn::Sub": "arn:aws:s3:::${artBucket}/*"
+                                }
+                            ],
+                            "Principal": {
+                                "AWS": [
+                                    {
+                                        "Fn::Sub": "arn:aws:iam::${prodAccount}:role/cross-account-role"
+                                    },
+                                    {
+                                        "Fn::Sub": "arn:aws:iam::${prodAccount}:role/prodCfnDeployRole"
+                                    },
+                                    {
+                                        "Fn::GetAtt": ["pipelineRole", "Arn"]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "myConnection": {
+            "Type": "AWS::CodeStarConnections::Connection",
+            "Properties": {
+                "ConnectionName": "myConnection",
+                "ProviderType": "GitHub"
+            }
+        },
+        "myPipeline": {
+            "Type" : "AWS::CodePipeline::Pipeline",
+            "Properties" : {
+                "ArtifactStore": {
+                    "Location" : {"Ref": "artBucket"},
+                    "Type" : "S3",
+                    "EncryptionKey": {
+                        "Id": {"Ref": "KMSKey"},
+                        "Type": "KMS"
+                    } 
+                },
+                "RoleArn": {
+                    "Fn::GetAtt": ["pipelineRole", "Arn"]
+                },
+                "Stages": [
+                    {
+                        "Name": "PullSourceChanges",
+                        "Actions": [
+                            {
+                                "Name": "Source",
+                                "InputArtifacts": [],
+                                "ActionTypeId": {
+                                    "Category": "Source",
+                                    "Owner" : "AWS",
+                                    "Provider" : "CodeStarSourceConnection",
+                                    "Version" : "1"
+                                },
+                                "OutputArtifacts": [
+                                    {
+                                        "Name": "SourceArtifact" 
+                                    }
+                                ],
+                                "Configuration": {
+                                    "ConnectionArn": {
+                                        "Fn::GetAtt": ["myConnection", "ConnectionArn"]
+                                    },
+                                    "FullRepositoryId": {"Ref": "myRepo"},
+                                    "BranchName": {"Ref": "myBranch"}
+                                },
+                                "RunOrder": "1"    
+                            }
+                        ]
+                    },
+                    {
+                        "Name": "DeployToDev",
+                        "Actions": [
+                            {
+                                "Name": "CreateChangeSetDev",
+                                "InputArtifacts": [
+                                    {
+                                        "Name": "SourceArtifact" 
+                                    }
+                                ],
+                                "ActionTypeId": {
+                                    "Category": "Deploy",
+                                    "Owner" : "AWS",
+                                    "Provider" : "CloudFormation",
+                                    "Version" : "1"
+                                },
+                                "Configuration": {
+                                    "ActionMode": "CHANGE_SET_REPLACE",
+                                    "Capabilities": "CAPABILITY_NAMED_IAM",
+                                    "ChangeSetName": "dev-pipeline-changeset",
+                                    "RoleArn": {
+                                        "Fn::GetAtt": ["devCfnDeployRole", "Arn"]
+                                    },
+                                    "StackName": "dev-web-infrastructure",
+                                    "TemplateConfiguration": "SourceArtifact::cloudFormation/devConfig.json",
+                                    "TemplatePath": "SourceArtifact::cloudFormation/master.json"
+                                },
+                                "RunOrder": "1"
+                            },
+                            {
+                                "Name": "ExecuteChangeSetDev",
+                                "Namespace": "cloudformationVars",
+                                "InputArtifacts": [
+                                    {
+                                        "Name": "SourceArtifact" 
+                                    }
+                                ],
+                                "ActionTypeId": {
+                                    "Category": "Deploy",
+                                    "Owner" : "AWS",
+                                    "Provider" : "CloudFormation",
+                                    "Version" : "1"
+                                },
+                                "Configuration": {
+                                    "ActionMode": "CHANGE_SET_EXECUTE",
+                                    "ChangeSetName": "dev-pipeline-changeset",
+                                    "RoleArn": {
+                                        "Fn::GetAtt": ["devCfnDeployRole", "Arn"]
+                                    },
+                                    "StackName": "dev-web-infrastructure"
+                                },
+                                "RunOrder": "2"
+                            },
+                            {
+                                "Name": "DeployToDevBucket",
+                                "InputArtifacts": [
+                                    {
+                                        "Name": "SourceArtifact" 
+                                    }
+                                ],
+                                "ActionTypeId": {
+                                    "Category": "Deploy",
+                                    "Owner" : "AWS",
+                                    "Provider" : "S3",
+                                    "Version" : "1"
+                                },
+                                "Configuration": {
+                                    "BucketName": "#{cloudformationVars.webBucket}",
+                                    "Extract": "true"
+                                },
+                                "RunOrder": "3"
+                            }
+                        ]
+
+                    },
+                    {
+                        "Name": "ApproveProdDeploy",
+                        "Actions": [
+                            {
+                                "Name": "ApproveDeployProd",
+                                "ActionTypeId": {
+                                    "Category": "Approval",
+                                    "Owner" : "AWS",
+                                    "Provider" : "Manual",
+                                    "Version" : "1"
+                                },
+                                "Configuration": {
+                                    "CustomData": "Log into the DEV account and verify changes before approving"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "Name": "DeployToProd",
+                        "Actions": [
+                            {
+                                "Name": "CreateChangeSetProd",
+                                "InputArtifacts": [
+                                    {
+                                        "Name": "SourceArtifact" 
+                                    }
+                                ],
+                                "ActionTypeId": {
+                                    "Category": "Deploy",
+                                    "Owner" : "AWS",
+                                    "Provider" : "CloudFormation",
+                                    "Version" : "1"
+                                },
+                                "Configuration": {
+                                    "ActionMode": "CHANGE_SET_REPLACE",
+                                    "Capabilities": "CAPABILITY_NAMED_IAM",
+                                    "ChangeSetName": "prod-pipeline-changeset",
+                                    "RoleArn": {"Fn::Sub": "arn:aws:iam::${prodAccount}:role/prodCfnDeployRole"},
+                                    "StackName": "prod-web-infrastructure",
+                                    "TemplateConfiguration": "SourceArtifact::cloudFormation/prodConfig.json",
+                                    "TemplatePath": "SourceArtifact::cloudFormation/master.json"
+                                },
+                                "RoleArn": {"Fn::Sub": "arn:aws:iam::${prodAccount}:role/cross-account-role"},
+                                "RunOrder": "1"
+                            },
+                            {
+                                "Name": "DeployChangeSetProd",
+                                "InputArtifacts": [
+                                    {
+                                        "Name": "SourceArtifact" 
+                                    }
+                                ],
+                                "ActionTypeId": {
+                                    "Category": "Deploy",
+                                    "Owner" : "AWS",
+                                    "Provider" : "CloudFormation",
+                                    "Version" : "1"
+                                },
+                                "Configuration": {
+                                    "ActionMode": "CHANGE_SET_EXECUTE",
+                                    "ChangeSetName": "prod-pipeline-changeset",
+                                    "RoleArn": {"Fn::Sub": "arn:aws:iam::${prodAccount}:role/prodCfnDeployRole"},
+                                    "StackName": "prod-web-infrastructure"
+                                },
+                                "RoleArn": {"Fn::Sub": "arn:aws:iam::${prodAccount}:role/cross-account-role"},
+                                "RunOrder": "2"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "pipelineRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "codepipeline.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyName": "pipePolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "codestar-connections:UseConnection"
+                                    ],
+                                    "Resource": {"Ref": "myConnection"},
+                                    "Effect": "Allow"
+                                },
+                                {
+                                    "Action": [
+                                        "s3:PutObject",
+                                        "s3:GetObject"
+                                    ],
+                                    "Resource": "*",
+                                    "Effect": "Allow"
+                                },
+                                {
+                                    "Action": [
+                                        "cloudformation:*",
+                                        "iam:PassRole"
+                                    ],
+                                    "Resource": "*",
+                                    "Effect": "Allow"
+                                },
+                                {
+                                    "Action": [
+                                        "sts:AssumeRole"
+                                    ],
+                                    "Resource": {"Fn::Sub": "arn:aws:iam::${prodAccount}:role/cross-account-role"},
+                                    "Effect": "Allow"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "devCfnDeployRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "cloudformation.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyName": "cfnDeployPolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "s3:*",
+                                        "cloudformation:*",
+                                        "lambda:*",
+                                        "route53:*",
+                                        "codestar-connections:*",
+                                        "ses:*",
+                                        "cloudfront:*",
+                                        "acm:*",
+                                        "iam:*",
+                                        "apigateway:*"
+                                    ],
+                                    "Resource": "*",
+                                    "Effect": "Allow"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
