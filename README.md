@@ -1,18 +1,34 @@
 ![Example Website](docs/exampleDomain.jpg)
 
 # Website Hosting in AWS
-This repository contains walkthroughs and Infrastructure as Code (IaC) scripts for building robust static website hosting architectures in AWS with features such as:
+This repository contains walkthroughs and scripts for building robust static website hosting architectures in AWS with features such as:
 
 - Custom domain integration
 - Accelerated content delivery
-- Continuous Deployment (CD) pipeline
-- Contact form backend and more
+- Serverless contact form backend
+- Treating infrastructure as code (IaC)
+- Continuous integration and deployment (CI/CD)
 
-Visit [kevinleger.com](https://kevinleger.com) to check out a live example.
+Visit [kevinleger.com](https://kevinleger.com) to check out the site used in the walkthroughs which runs using the techniques described herein.
 
-To get started, review the architecture overview to decide on what features to implement for your use case then follow along with the deep dives or launch the appropriate [CloudFormation template](cloudFormation/) in AWS.
+## To-Do List:
+- add authentication and authorization phase(s)
+- add server-based hosting content
+- review IAM policy permisions for SES
+- review any best practices SES configuration
+- align order of iam statements throughout
+- review lambda proxy integration for contactForm
 
-## Architecture Overview
+## Getting Started
+
+There are two areas of instruction:
+- The Basics - demonstrates how to start using services for this use case
+    - walkthrough split into multiple sections called phases
+    - plan to add dynamic website hosting with ec2/docker/etc. (date TBD)
+- Deep Dives - goes beyond the basics and into more advanced topics
+    - [cross-account CI/CD and IaC](docs/deepDives/pipeline/README.md) (work in progress)
+
+## The Basics Architecture Overview
 The complete architecture can be seen below and is broken down into phases to separate features from one another.
 
 - Phase1: S3
@@ -49,23 +65,16 @@ The complete architecture can be seen below and is broken down into phases to se
 ![Website Architecture](docs/Architecture.jpg)
 
 
-## Deep Dive
-This section will cover the implementation of each phase in enough detail for anyone following along and getting their hands dirty. Every button click will not be captured as the AWS management console is pretty easy to follow and service layouts in the AWS console change overtime anyway.
+## The Basics Walkthrough
+This section will cover the implementation of each phase in enough detail for anyone following along and getting their hands dirty.
+
+Every button click or keystroke to accomplish a task will not be captured as the AWS console UI and AWS services change overtime. However, links to the appropriate AWS documentation and other useful content will be captured in the resources section.
 
 **NOTE**: Throughout each phase there are `my statements` which are placeholder values that must be replaced by the actual values specific to your deployment. Example below:
 
 `arn:aws:s3:::MY-BUCKET-NAME/*` ------SHOULD BE CHANGED TO------> `arn:aws:s3:::cool-website-123/*`
 
-TODOS:
-- master cfn template and adjust previous phases (CF baseline?)
-- add authentication and authorization phase(s)
-- add server-based hosting content
-- review IAM policy permisions for SES
-- review any best practices SES configuration
-- align order of iam statements throughout
-- review lambda proxy integration for contactForm
-
-## Phase1 - Getting up and Running
+## Phase1 - Getting up and Running ([CFN Template](cloudformation/phase1.json))
 Why: Quickly deploy a website with an unencrypted connection via HTTP
 
 What:
@@ -115,7 +124,7 @@ Click on the bucket website endpoint to access the site via HTTP in a new tab.
 
 ![Website](docs/phase1/bucketWebsite.jpg)
 
-## Phase2 - Encryption and Caching
+## Phase2 - Encryption and Caching ([CFN Template](cloudformation/phase2.json))
 Why: Encrypted connection via HTTPS, accelerated content delivery, origin behavior, and more
 
 What: 
@@ -169,7 +178,7 @@ Access the website via HTTPS with the cloudfront distribution domain name which 
 
 ![Cloudfront Website](docs/phase2/cloudfrontWebsite.jpg)
 
-## Phase3 - Custom Domain Name
+## Phase3 - Custom Domain Name ([CFN Template](cloudformation/phase3.json))
 Why: more intuitive URLs for users to interact with, branding, and other capabilities with Route 53
 
 What:
@@ -220,7 +229,7 @@ The website is now accessible from the custom domain via HTTPS
 
 ![Custom Website](docs/phase3/customDomain.jpg)
 
-## Phase4 - Contact Form
+## Phase4 - Contact Form ([CFN Template](cloudformation/phase4.json))
 Why: capability for users to contact an admin or website owner via a designated email address 
 
 What:
@@ -355,7 +364,7 @@ With the API created, click actions and deploy the API. Then navigate to the sta
 Finally, copy the POST invoke url and include the url in the website's contact form script. The invoke url should look similar to `https://dfh341235s.execute-api.us-east-1.amazonaws.com/01/contactme`
 
 
-## Phase5 - Continuous Deployment and Version Control
+## Phase5 - Continuous Deployment and Version Control ([CFN Template](cloudformation/phase5.json))
 Why: Automate deployment of website changes
 
 What:
