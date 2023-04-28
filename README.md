@@ -22,13 +22,13 @@ Visit [kevinleger.com](https://kevinleger.com) to check out the site used in the
 ## Getting Started
 
 There are two areas of instruction:
-- The Basics - demonstrates how to start using services for this use case
+- This page - covers the basics of how to start using services for this use case
     - walkthrough split into multiple sections called phases
     - plan to add dynamic website hosting with ec2/docker/etc. (date TBD)
-- Deep Dives - goes beyond the basics and into more advanced topics
+- Deep Dives - go beyond the basics and into more advanced topics
     - [cross-account CI/CD and IaC](docs/deepDives/pipeline/README.md) (work in progress)
 
-## The Basics Architecture Overview
+## Architecture Overview
 The complete architecture can be seen below and is broken down into phases to separate features from one another.
 
 - Phase1: S3
@@ -65,10 +65,10 @@ The complete architecture can be seen below and is broken down into phases to se
 ![Website Architecture](docs/Architecture.jpg)
 
 
-## The Basics Walkthrough
+## Walkthrough
 This section will cover the implementation of each phase in enough detail for anyone following along and getting their hands dirty.
 
-Every button click or keystroke to accomplish a task will not be captured as the AWS console UI and AWS services change overtime. However, links to the appropriate AWS documentation and other useful content will be captured in the resources section.
+Every click or keystroke to accomplish a task will not be captured as the AWS console UI and AWS services change overtime. However, links to the appropriate AWS documentation and other useful content will be captured in the resources area for each phase.
 
 **NOTE**: Throughout each phase there are `my statements` which are placeholder values that must be replaced by the actual values specific to your deployment. Example below:
 

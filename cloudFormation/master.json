@@ -19,12 +19,12 @@
             "Type" : "String",
             "Description" : "Enter the bucket name where the lambda deployment package is stored"
         },
-          "myLambdaPackage" : {
+        "myLambdaPackage" : {
             "Type" : "String",
             "Default" : "contactForm.zip",
             "Description" : "Enter the lambda deployment package name (including .zip)"
         },
-          "myLambdaHandler" : {
+        "myLambdaHandler" : {
             "Type" : "String",
             "Default" : "contactForm.lambda_handler",
             "Description" : "Enter the python file name for the lambda to call"
