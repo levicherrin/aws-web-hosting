@@ -1,0 +1,181 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  myRepo:
+    Type: String
+    Default: johndoe/website-repo
+    Description: Enter the GitHub accountName/repoName storing the website files
+  myBranch:
+    Type: String
+    Default: main
+    Description: Enter the appropriate branch name associated with myRepo
+Resources:
+  webBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: 'true'
+        BlockPublicPolicy: 'true'
+        IgnorePublicAcls: 'true'
+        RestrictPublicBuckets: 'true'
+  BucketPolicyForOac:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: webBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Action:
+          - s3:GetObject
+          Effect: Allow
+          Resource:
+            Fn::Sub: arn:aws:s3:::${webBucket}/*
+          Principal:
+            Service: cloudfront.amazonaws.com
+          Condition:
+            StringEquals:
+              AWS:SourceArn:
+                Fn::Sub: arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudfrontDistribution}
+  originAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name:
+          Ref: AWS::StackName
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+  cloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName:
+            Fn::GetAtt:
+            - webBucket
+            - DomainName
+          Id: myWebsite
+          S3OriginConfig: {}
+          OriginAccessControlId:
+            Fn::GetAtt:
+            - originAccessControl
+            - Id
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - GET
+          - HEAD
+          CachedMethods:
+          - GET
+          - HEAD
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: myWebsite
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: 'true'
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: 'true'
+  artBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: 'true'
+        BlockPublicPolicy: 'true'
+        IgnorePublicAcls: 'true'
+        RestrictPublicBuckets: 'true'
+  myConnection:
+    Type: AWS::CodeStarConnections::Connection
+    Properties:
+      ConnectionName: myConnection
+      ProviderType: GitHub
+  myPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location:
+          Ref: artBucket
+        Type: S3
+      RoleArn:
+        Fn::GetAtt:
+        - pipelineRole
+        - Arn
+      Stages:
+      - Name: Source
+        Actions:
+        - Name: Source
+          InputArtifacts: []
+          ActionTypeId:
+            Category: Source
+            Owner: AWS
+            Provider: CodeStarSourceConnection
+            Version: '1'
+          OutputArtifacts:
+          - Name: SourceArtifact
+          Configuration:
+            ConnectionArn:
+              Fn::GetAtt:
+              - myConnection
+              - ConnectionArn
+            FullRepositoryId:
+              Ref: myRepo
+            BranchName:
+              Ref: myBranch
+          RunOrder: '1'
+      - Name: Deploy
+        Actions:
+        - Name: Deploy
+          InputArtifacts:
+          - Name: SourceArtifact
+          ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Provider: S3
+            Version: '1'
+          Configuration:
+            BucketName:
+              Ref: webBucket
+            Extract: 'true'
+          RunOrder: '1'
+  pipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - codepipeline.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: pipePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - codestar-connections:UseConnection
+            Resource:
+              Ref: myConnection
+            Effect: Allow
+          - Action:
+            - s3:PutObject
+            Resource:
+            - Fn::Sub: arn:aws:s3:::${webBucket}/*
+            - Fn::Sub: arn:aws:s3:::${artBucket}/*
+            Effect: Allow
+          - Action:
+            - s3:GetObject
+            Resource:
+              Fn::Sub: arn:aws:s3:::${artBucket}/*
+            Effect: Allow
+Outputs:
+  CDNURL:
+    Description: URL for secure access to the website
+    Value:
+      Fn::GetAtt:
+      - cloudfrontDistribution
+      - DomainName

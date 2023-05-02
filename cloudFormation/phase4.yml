@@ -1,0 +1,263 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  myEmail:
+    Type: String
+    Default: johndoe@example.com
+    Description: Enter an email address for the contactMe Function
+  myBucket:
+    Type: String
+    Description: Enter the bucket name where the lambda deployment package is stored
+  myLambdaPackage:
+    Type: String
+    Default: contactForm.zip
+    Description: Enter the lambda deployment package name (including .zip)
+  myLambdaHandler:
+    Type: String
+    Default: contactForm.lambda_handler
+    Description: Enter the python file name for the lambda to call
+  myStage:
+    Type: String
+    Default: dev
+    Description: Enter a stage name for contactMe API deployment
+Resources:
+  webBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: 'true'
+        BlockPublicPolicy: 'true'
+        IgnorePublicAcls: 'true'
+        RestrictPublicBuckets: 'true'
+  BucketPolicyForOac:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: webBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Action:
+          - s3:GetObject
+          Effect: Allow
+          Resource:
+            Fn::Sub: arn:aws:s3:::${webBucket}/*
+          Principal:
+            Service: cloudfront.amazonaws.com
+          Condition:
+            StringEquals:
+              AWS:SourceArn:
+                Fn::Sub: arn:aws:cloudfront::${AWS::AccountId}:distribution/${cloudfrontDistribution}
+  originAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name:
+          Ref: AWS::StackName
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+  cloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName:
+            Fn::GetAtt:
+            - webBucket
+            - DomainName
+          Id: myWebsite
+          S3OriginConfig: {}
+          OriginAccessControlId:
+            Fn::GetAtt:
+            - originAccessControl
+            - Id
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - GET
+          - HEAD
+          CachedMethods:
+          - GET
+          - HEAD
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: myWebsite
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: 'true'
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: 'true'
+  ContactMeEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity:
+        Ref: myEmail
+  ContactMeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Architectures:
+      - x86_64
+      Code:
+        S3Bucket:
+          Ref: myBucket
+        S3Key:
+          Ref: myLambdaPackage
+      Handler:
+        Ref: myLambdaHandler
+      Role:
+        Fn::GetAtt:
+        - ContactMeFunctionRole
+        - Arn
+      Runtime: python3.9
+  ContactMeFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: emailPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: ses:SendEmail
+            Resource: "*"
+  ContactMeAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      EndpointConfiguration:
+        Types:
+        - REGIONAL
+      Name: contactMe
+  ContactMeResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+        - ContactMeAPI
+        - RootResourceId
+      PathPart: contactMe
+      RestApiId:
+        Ref: ContactMeAPI
+  ContactMePost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        ConnectionType: INTERNET
+        Credentials:
+          Fn::GetAtt:
+          - ContactMeApiRole
+          - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+            method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+          ResponseTemplates:
+            application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        Type: AWS
+        Uri:
+          Fn::Sub:
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${functionArn}/invocations
+          - functionArn:
+              Fn::GetAtt:
+              - ContactMeFunction
+              - Arn
+      MethodResponses:
+      - ResponseModels:
+          application/json: Empty
+        StatusCode: '200'
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Headers: false
+          method.response.header.Access-Control-Allow-Methods: false
+          method.response.header.Access-Control-Allow-Origin: false
+      ResourceId:
+        Ref: ContactMeResource
+      RestApiId:
+        Ref: ContactMeAPI
+  ContactMeOption:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      Integration:
+        IntegrationResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+            method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+          ResponseTemplates:
+            application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+      - ResponseModels:
+          application/json: Empty
+        StatusCode: '200'
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Headers: false
+          method.response.header.Access-Control-Allow-Methods: false
+          method.response.header.Access-Control-Allow-Origin: false
+      ResourceId:
+        Ref: ContactMeResource
+      RestApiId:
+        Ref: ContactMeAPI
+  ContactMeDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+    - ContactMePost
+    - ContactMeOption
+    Properties:
+      RestApiId:
+        Ref: ContactMeAPI
+      StageName:
+        Ref: myStage
+  ContactMeApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - apigateway.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: invokeLambdaPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource: "*"
+Outputs:
+  CDNURL:
+    Description: URL for secure access to the website
+    Value:
+      Fn::GetAtt:
+      - cloudfrontDistribution
+      - DomainName
+  stageEndpoint:
+    Description: Invoke URL for stage endpoint
+    Value:
+      Fn::Sub: https://${ContactMeAPI}.execute-api.${AWS::Region}.amazonaws.com/${myStage}/contactMe
