@@ -1,7 +1,7 @@
 ![Example Website](docs/exampleDomain.jpg)
 
 # Website Hosting in AWS
-This repository contains walkthroughs and scripts for building robust static website hosting architectures in AWS with features such as:
+This repository contains walkthroughs / scripts for building web hosting architectures in AWS with features such as:
 
 - Custom domain integration
 - Accelerated content delivery
@@ -12,6 +12,7 @@ This repository contains walkthroughs and scripts for building robust static web
 Visit [kevinleger.com](https://kevinleger.com) to check out the site used in the walkthroughs which runs using the techniques described herein.
 
 ## To-Do List:
+- update arch overview (phase6)
 - add authentication and authorization phase(s)
 - add server-based hosting content
 - review IAM policy permisions for SES
@@ -22,20 +23,21 @@ Visit [kevinleger.com](https://kevinleger.com) to check out the site used in the
 ## Getting Started
 
 There are two areas of instruction:
-- This page - covers the basics of how to start using services for this use case
+- This page - introduces topics and services for this use case
     - walkthrough split into multiple sections called phases
     - plan to add dynamic website hosting with ec2/docker/etc. (date TBD)
-- Deep Dives - go beyond the basics and into more advanced topics
-    - [cross-account CI/CD and IaC](docs/deepDives/pipeline/README.md) (work in progress)
+- Deep Dives - beyond the basics and into more advanced implementations
+    - [cross-account CI/CD + IaC](docs/deepDives/pipeline/README.md) (work in progress)
 
 ## Architecture Overview
 The complete architecture can be seen below and is broken down into phases to separate features from one another.
 
-- Phase1: S3
-- Phase2: CloudFront
-- Phase3: ACM and R53
-- Phase4: API GW, Lambda, and SES
-- Phase5: GitHub and CodePipeline 
+- [Phase1: S3](#phase1---getting-up-and-running)
+- [Phase2: CloudFront](#phase2---encryption-and-caching)
+- [Phase3: ACM and R53](#phase3---custom-domain-name)
+- [Phase4: API GW, Lambda, and SES](#phase4---contact-form)
+- [Phase5: GitHub and CodePipeline](#phase5---continuous-deployment-and-version-control)
+- [Phase6: CloudFormation](#phase6---treating-infrastructure-as-code)
 
 #### Service Descriptions
 <!-- (TOC:collapse=true&collapseText=Click to expand) -->
@@ -74,7 +76,7 @@ Every click or keystroke to accomplish a task will not be captured as the AWS co
 
 `arn:aws:s3:::MY-BUCKET-NAME/*` ------SHOULD BE CHANGED TO------> `arn:aws:s3:::cool-website-123/*`
 
-## Phase1 - Getting up and Running ([CFN Template](cloudformation/phase1.json))
+## Phase1 - Getting up and Running
 Why: Quickly deploy a website with an unencrypted connection via HTTP
 
 What:
@@ -83,7 +85,7 @@ What:
 2. index document and any supporting assets for a website
 
 Resources:
-- [Some free website templates](https://html5up.net/)
+- [Free website templates](https://html5up.net/)
 - [AWS account getting started](https://docs.aws.amazon.com/accounts/latest/reference/welcome-first-time-user.html)
 - [AWS management console](https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/learn-whats-new.html)
 - [S3 Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html)
@@ -124,7 +126,7 @@ Click on the bucket website endpoint to access the site via HTTP in a new tab.
 
 ![Website](docs/phase1/bucketWebsite.jpg)
 
-## Phase2 - Encryption and Caching ([CFN Template](cloudformation/phase2.json))
+## Phase2 - Encryption and Caching
 Why: Encrypted connection via HTTPS, accelerated content delivery, origin behavior, and more
 
 What: 
@@ -143,8 +145,8 @@ Create a new CloudFront distribution and set:
 - Add an `Origin Access Control (OAC)` identity using the distribution wizard
     - Opt to manually add permissions to the S3 bucket
 - Set the viewer protocol to `redirect http to https`
-- Choose the price class that aligns with your budget and expected end user locations
-- Enter the default root object for the website such as `index.html`
+- Choose the `price class` that aligns with your budget and expected end user locations
+- Enter the `default root object` for the website such as `index.html`
 
 ![Create Distribution](docs/phase2/createDistribution.jpg)
 
@@ -178,7 +180,7 @@ Access the website via HTTPS with the cloudfront distribution domain name which 
 
 ![Cloudfront Website](docs/phase2/cloudfrontWebsite.jpg)
 
-## Phase3 - Custom Domain Name ([CFN Template](cloudformation/phase3.json))
+## Phase3 - Custom Domain Name
 Why: more intuitive URLs for users to interact with, branding, and other capabilities with Route 53
 
 What:
@@ -229,7 +231,7 @@ The website is now accessible from the custom domain via HTTPS
 
 ![Custom Website](docs/phase3/customDomain.jpg)
 
-## Phase4 - Contact Form ([CFN Template](cloudformation/phase4.json))
+## Phase4 - Contact Form
 Why: capability for users to contact an admin or website owner via a designated email address 
 
 What:
@@ -294,7 +296,7 @@ Author a new lambda function from scratch
 
 ![Create Function](docs/phase4/createLambda.jpg)
 
-Once created, replace the existing code source with the contactForm.py script (also shown below) and deploy the changes.
+Once created, replace the existing code source with the [contactForm.py script](lambda/contactForm.py) (also shown below) and deploy the changes.
 
 ```
 import json
@@ -364,7 +366,7 @@ With the API created, click actions and deploy the API. Then navigate to the sta
 Finally, copy the POST invoke url and include the url in the website's contact form script. The invoke url should look similar to `https://dfh341235s.execute-api.us-east-1.amazonaws.com/01/contactme`
 
 
-## Phase5 - Continuous Deployment and Version Control ([CFN Template](cloudformation/phase5.json))
+## Phase5 - Continuous Deployment and Version Control
 Why: Automate deployment of website changes
 
 What:
@@ -468,8 +470,133 @@ Now source code changes in the GitHub repository will flow to the website bucket
 
 ![Successful Pipeline](docs/phase5/pipeline.jpg)
 
+## Phase6 - Treating Infrastructure as Code
+Why: Automate deployment of website infrastructure
+
+What:
+
+1. Completed phases1-5 (optional)
+
+2. AWS account and IAM user with administrative permissions
+
+3. CloudFormation template
+
+Resources:
+- [CloudFormation docs](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html)
+- [Template anatomy](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-anatomy.html)
+- [Resource and property type](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html)
+- [Intrinsic function reference](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference.html)
+
+### Step 1 - Review Documentation and Phase Templates
+The cloudformation concepts to read over at the start are the `resources`, `parameters`, and `outputs` sections. The `resources` section is the only required section for a template but `parameters` and `outputs` can be very helpful.
+
+The [cloudformation](./cloudFormation/) folder in this repo houses templates that cover phases1-5 along with a master template that combines all five phases into one template.
+
+The phase1 template will be demo'd in this section but feel free to use the other templates also. As seen below, the phase1 template has two resources with the logical Ids `webBucket` and `BucketPolicyForPublicAccess` along with one output called `WebstieEndpointURL`.
+
+```
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  webBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: 'false'
+        BlockPublicPolicy: 'false'
+        IgnorePublicAcls: 'false'
+        RestrictPublicBuckets: 'false'
+      WebsiteConfiguration:
+        IndexDocument: index.html
+  BucketPolicyForPublicAccess:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: webBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Action:
+          - s3:GetObject
+          Effect: Allow
+          Resource:
+            Fn::Sub: arn:aws:s3:::${webBucket}/*
+          Principal: "*"
+Outputs:
+  WebstieEndpointURL:
+    Value:
+      Fn::GetAtt:
+      - webBucket
+      - WebsiteURL
+    Description: URL for unsecure access to the website
+```
+
+What may stand out in this template are the `Fn::Sub:` and `Fn::GetAtt:` functions. These functions exchange variables like `${webBucket}` with actual values during stack creation.
+
+Including functions is important in making templates portable, check the function reference in resources for more info.
+
+### Step 2 - Create a CloudFormation Stack
+
+Upload the [phase1 template](./cloudFormation/phase1.yml) to the CloudFormation service to begin stack creation
+
+![Create Bucket](docs/phase6/specifyTemplate.jpg)
+
+Pick a stack name and leave all other stack options as default
+
+![Create Bucket](docs/phase6/stackDetails.jpg)
+
+Check the review page for any mistakes and click submit
+
+### Step 3 - Review CloudFormation Stack Progress
+
+The stack will initially be in the `CREATE_IN_PROGRESS` state
+
+![Create Bucket](docs/phase6/stackProgress.jpg)
+
+Check the events tab to see details on creating the resources defined in the template
+
+![Create Bucket](docs/phase6/stackEvents.jpg)
+
+Once the stack has finished creating (or updating) all resources the outputs tab will list any key value pairs included in the template.
+
+```
+Outputs:
+  WebstieEndpointURL:
+    Value:
+      Fn::GetAtt:
+      - webBucket
+      - WebsiteURL
+    Description: URL for unsecure access to the website
+```
+
+Check the outputs tab to see the S3 bucket website endpoint url.
+
+![Create Bucket](docs/phase6/stackOutputs.jpg)
+
+Looking back earlier in this walkthrough to phase1 shows the manual steps to accomplish the same work done by the CloudFormation stack (besides uploading the website files to the bucket).
+
+### Step 4 - Delete the CloudFormation Stack
+
+Just as resources are made when creating the stack, they are terminated when deleting the stack unless `DeletionPolicy: Retain` is specified for a resource.
+
+![Create Bucket](docs/phase6/deleteStack.jpg)
+
+In this case the bucket is not deleted and shows a `DELETE_SKIPPED` status since the deletion policy has been set to retain.
+
+```
+Resources:
+  webBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+```
+![Create Bucket](docs/phase6/deleteResources.jpg)
+
+The phase1 template is setup this way as a bucket resource that has objects in it will fail to delete and throw an error.  S3 bucket resources are an exception in this case as most all resources are deleted when the stack is deleted without extra setup required in a template.
+
+Reading through the CloudFormation documentation to write templates and create stacks is pretty straightforward though there are exceptions such as the bucket resource one discussed earlier.
 
 ## Credits
-Thanks to [AJ](https://twitter.com/ajlkn) and [Ram](https://twitter.com/ram__patra) for the [website template](https://github.com/rampatra/photography) used here.
+Thanks to [AJ](https://twitter.com/ajlkn) and [Ram](https://twitter.com/ram__patra) for the awesome [website template](https://github.com/rampatra/photography).
 
-Thanks to [Adrian](https://twitter.com/adriancantrill) for his AWS training and [this slack community](techstudyslack.slack.com) for help with anything AWS.
+Thanks to [Adrian](https://twitter.com/adriancantrill) for his AWS training and the [techstudyslack](techstudyslack.slack.com) community for help with anything AWS.
