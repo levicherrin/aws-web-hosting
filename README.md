@@ -490,7 +490,7 @@ Resources:
 ### Step 1 - Review Documentation and Phase Templates
 The cloudformation concepts to read over at the start are the `resources`, `parameters`, and `outputs` sections. The `resources` section is the only required section for a template but `parameters` and `outputs` can be very helpful.
 
-The [cloudformation](./cloudFormation/) folder in this repo houses templates that cover phases1-5 along with a master template that combines all five phases into one template.
+The [cloudformation](./infrastructure/cloudformation/) folder in this repo houses templates that cover phases1-5 along with a master template that combines all five phases into one template.
 
 The phase1 template will be demo'd in this section but feel free to use the other templates also. As seen below, the phase1 template has two resources with the logical Ids `webBucket` and `BucketPolicyForPublicAccess` along with one output called `WebstieEndpointURL`.
 
@@ -538,7 +538,7 @@ Including functions is important in making templates portable, check the functio
 
 ### Step 2 - Create a CloudFormation Stack
 
-Upload the [phase1 template](./cloudFormation/phase1.yml) to the CloudFormation service to begin stack creation
+Upload the [phase1 template](./infrastructure/cloudformation/phase1.yml) to the CloudFormation service to begin stack creation
 
 ![Create Bucket](docs/phase6/specifyTemplate.jpg)
 

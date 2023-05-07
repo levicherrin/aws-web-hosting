@@ -1,11 +1,11 @@
 {
     "Parameters" : {
-        "myZone" : "MY-ROUTE53-DEV-ZONE",
-        "myCustomDomain" : "dev.MY-DOMAIN",
+        "myZone" : "MY-ROUTE53-TEST-ZONE",
+        "myCustomDomain" : "test.MY-DOMAIN",
         "myEmail" : "MY-CONTACT-EMAIL",
         "myBucket" : "MY-LAMBDA-BUCKET",
         "myLambdaPackage" : "contactForm.zip",
-        "myLambdaHandler" : "lambda_handler",
+        "myLambdaHandler" : "test_contactForm.lambda_handler",
         "myStage" : "dev"
     }
 }
