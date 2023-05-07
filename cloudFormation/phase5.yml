@@ -62,6 +62,7 @@ Resources:
             Fn::GetAtt:
             - originAccessControl
             - Id
+          OriginPath: "/website"
         DefaultCacheBehavior:
           AllowedMethods:
           - GET
