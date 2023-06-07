@@ -12,32 +12,35 @@ This repository contains walkthroughs / scripts for building web hosting archite
 Visit [kevinleger.com](https://kevinleger.com) to check out the site used in the walkthroughs which runs using the techniques described herein.
 
 ## To-Do List:
-- update arch overview (phase6)
-- add authentication and authorization phase(s)
-- add server-based hosting content
+- add authentication and authorization phase
 - review IAM policy permisions for SES
 - review any best practices SES configuration
 - align order of iam statements throughout
 - review lambda proxy integration for contactForm
+- add dynamic website hosting with containers (date TBD)
 
 ## Getting Started
 
-There are two areas of instruction:
-- This page - introduces topics and services for this use case
-    - walkthrough split into multiple sections called phases
-    - plan to add dynamic website hosting with ec2/docker/etc. (date TBD)
-- Deep Dives - beyond the basics and into more advanced implementations
-    - [cross-account CI/CD + IaC](docs/deepDives/pipeline/README.md) (work in progress)
+There are two walkthroughs further down this page on how to:
+- Host a static website with S3
+- Host a dynamic website with EC2
 
-## Architecture Overview
-The complete architecture can be seen below and is broken down into phases to separate features from one another.
+Additional topics tailored for this use case are covered in the [docs](./docs/) directory:
+- [AWS organization setup](./docs/organizations/) (work in progress)
+- [IaC with terraform and cloudformation](./infrastructure/) (work in progress)
+- [Continuous integration / deployment pipeline](docs/deepDives/pipeline/README.md) (work in progress)
+
+## Static Website Architecture
+Hosting a static web page is relatively simple and cost effiecient. These sites present the same information to all users and might be updated infrequently. For static pages that require more frequent updates, combine a static site generator like Hugo with a CI/CD pipeline to automate deploying changes.
+
+The architecture can be seen below and is broken down into phases to separate features from one another.
 
 - [Phase1: S3](#phase1---getting-up-and-running)
 - [Phase2: CloudFront](#phase2---encryption-and-caching)
 - [Phase3: ACM and R53](#phase3---custom-domain-name)
 - [Phase4: API GW, Lambda, and SES](#phase4---contact-form)
-- [Phase5: GitHub and CodePipeline](#phase5---continuous-deployment-and-version-control)
-- [Phase6: CloudFormation](#phase6---treating-infrastructure-as-code)
+
+![Static Site Architecture](docs/staticSiteArch.jpg)
 
 #### Service Descriptions
 <!-- (TOC:collapse=true&collapseText=Click to expand) -->
@@ -64,19 +67,30 @@ The complete architecture can be seen below and is broken down into phases to se
 
 </details>
 
-![Website Architecture](docs/Architecture.jpg)
+## Dynamic Website Architecture
+To provide more rich features to users a web page needs to dynamically generate unique content upon request which requres a server. 
+- WordPress is the open-source software used for the dynamic site
+- LAMP stack is Red Hat Enterpise Linux, Apache, RDS MySQL, and PHP
+- Connections to the WordPress servers are made through application load balancers
+- Both the load balancers and EC2 instances autoscale across AZs
+- Content is cached using CloudFront to reduce server load and accelerate delivery
 
+The architecture can be seen below.
 
-## Walkthrough
-This section will cover the implementation of each phase in enough detail for anyone following along and getting their hands dirty.
+![Dynamic Site Architecture](docs/dynamicSiteArch.jpg)
 
-Every click or keystroke to accomplish a task will not be captured as the AWS console UI and AWS services change overtime. However, links to the appropriate AWS documentation and other useful content will be captured in the resources area for each phase.
+## Walkthroughs
+Implementation of each phase should be covered in enough detail for anyone following along and getting their hands dirty, however, every click/keystroke to accomplish a task will not be captured as the AWS console UI and AWS services change overtime.
+
+Links to the appropriate AWS documentation and other useful content will be captured in the resources area for each phase.
 
 **NOTE**: Throughout each phase there are `my statements` which are placeholder values that must be replaced by the actual values specific to your deployment. Example below:
 
 `arn:aws:s3:::MY-BUCKET-NAME/*` ------SHOULD BE CHANGED TO------> `arn:aws:s3:::cool-website-123/*`
 
-## Phase1 - Getting up and Running
+## Static Website Walkthrough
+
+### Phase1 - Getting up and Running
 Why: Quickly deploy a website with an unencrypted connection via HTTP
 
 What:
@@ -91,16 +105,15 @@ Resources:
 - [S3 Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html)
 - [Configuring an index document](https://docs.aws.amazon.com/AmazonS3/latest/userguide/IndexDocumentSupport.html)
 
-### Step 1 - Website Bucket
 Begin by creating a new bucket in S3 with all the default settings applied and upload the website files to the bucket.
 
-![Create Bucket](docs/phase1/createBucket.jpg)
+![Create Bucket](docs/staticWebsite/phase1/createBucket.jpg)
 
 Now we need to adjust the permissions so that anyone can view the files in the bucket.
 
 First, navigate to the permissions tab of the bucket and turn off `block all public access`.
 
-![Unblock Access](docs/phase1/blockPublicAccess.jpg)
+![Unblock Access](docs/staticWebsite/phase1/blockPublicAccess.jpg)
 
 
 Next, edit the bucket policy to allow any principal (symbolized by the asterik) to read objects from the bucket using the S3 `GetObject` action.
@@ -124,9 +137,9 @@ Finally, navigate to the poperties tab and enable static website hosting. Make s
 
 Click on the bucket website endpoint to access the site via HTTP in a new tab. 
 
-![Website](docs/phase1/bucketWebsite.jpg)
+![Website](docs/staticWebsite/phase1/bucketWebsite.jpg)
 
-## Phase2 - Encryption and Caching
+### Phase2 - Encryption and Caching
 Why: Encrypted connection via HTTPS, accelerated content delivery, origin behavior, and more
 
 What: 
@@ -136,10 +149,8 @@ Resources:
 - [CloudFront docs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html)
 - [S3 endpoint differences](https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteEndpoints.html#WebsiteRestEndpointDiff)
 
-### Step 1 - Website Bucket
 First, disable static website hosting on the bucket since CloudFront will be setup to use the bucket's REST API endpoint.
 
-### Step 2 - CloudFront
 Create a new CloudFront distribution and set:
 - Distribution `origin domain` to the REST API endpoint of the bucket
 - Add an `Origin Access Control (OAC)` identity using the distribution wizard
@@ -148,9 +159,8 @@ Create a new CloudFront distribution and set:
 - Choose the `price class` that aligns with your budget and expected end user locations
 - Enter the `default root object` for the website such as `index.html`
 
-![Create Distribution](docs/phase2/createDistribution.jpg)
+![Create Distribution](docs/staticWebsite/phase2/createDistribution.jpg)
 
-### Step 3 - Website Bucket
 Return to the website bucket then navigate to the permissions tab and turn `block all public access` back on. 
 
 Then edit the bucket policy to redefine the permissions to allow access from the cloudfront OAC identity.
@@ -178,9 +188,9 @@ Then edit the bucket policy to redefine the permissions to allow access from the
 
 Access the website via HTTPS with the cloudfront distribution domain name which is located on the details section of the distribution and looks similar to: `hj34l2kdfks.cloudfront.net`
 
-![Cloudfront Website](docs/phase2/cloudfrontWebsite.jpg)
+![Cloudfront Website](docs/staticWebsite/phase2/cloudfrontWebsite.jpg)
 
-## Phase3 - Custom Domain Name
+### Phase3 - Custom Domain Name
 Why: more intuitive URLs for users to interact with, branding, and other capabilities with Route 53
 
 What:
@@ -194,13 +204,11 @@ Resources:
 - [Route 53 docs](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html)
 - [CloudFront docs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html)
 
-
-### Step 1 - ACM
 First, request a new public SSL/TLS certificate entering 
 - domain name field set to a wildcard subdomain (e.g., `*.example.com`)
 - then add another domain name this time entering the root domain (e.g., `example.com`)
 
-![Request Certificate](docs/phase3/requestCertificate.jpg)
+![Request Certificate](docs/staticWebsite/phase3/requestCertificate.jpg)
 
 This setup allows one certificate to protect multiple subdomains such as `www.example.com` and `blog.example.com` in addition to the root domain `example.com`.
 
@@ -210,7 +218,6 @@ Keep all other settings default and complete the certificate request.
 
 Navigate to the certificate details page to see that the issuing status is pending validation. Note down the CNAME name and value data provided for each domain which will be used to validate the request finalizing the issuing process.
 
-### Step 2 - Route53
 Create DNS records to validate the ACM certificate
 - CNAME record for each domain listed on the ACM certificate using values from the ACM console
 
@@ -219,19 +226,17 @@ Create DNS records to route traffic to the cloudfront distribution domain name
 - AAAA alias record for the root domain (if IPv6 is enabled for the CF distribution)
 - Repeat the steps above for any subdomains
 
-### Step 3 - CloudFront
 Once the ACM certificate moves from pending to issued, edit the CF distribution general settings 
 - add the root domain to the alternate domain name field 
 - repeat the step above for any subdomains
 - Select the public certificate issued by ACM in the Custom SSL certificate field
 
-![Edit Distribution](docs/phase3/editDistribution.jpg)
+![Edit Distribution](docs/staticWebsite/phase3/editDistribution.jpg)
 
 The website is now accessible from the custom domain via HTTPS
 
-![Custom Website](docs/phase3/customDomain.jpg)
+![Custom Website](docs/staticWebsite/phase3/customDomain.jpg)
 
-## Phase4 - Contact Form
 Why: capability for users to contact an admin or website owner via a designated email address 
 
 What:
@@ -246,18 +251,16 @@ Resources:
 - [Saurabh's blog post](https://aws.amazon.com/blogs/architecture/create-dynamic-contact-forms-for-s3-static-websites-using-aws-lambda-amazon-api-gateway-and-amazon-ses/)
 - [Dinesh's blog post](https://medium.com/@dineshrk/contact-form-for-a-static-website-hosted-on-aws-s3-8033cfe027c0)
 
-### Step 1 - Simple Email Service
 To get started, create a new identity in SES for each sender and receiver that will be used to exchange email. 
 
-![Create Identity](docs/phase4/createIdentity.jpg)
+![Create Identity](docs/staticWebsite/phase4/createIdentity.jpg)
 
 **Note**: A single verified email address identity can be used as both the sending address and the receiving adress. This is a quick method to get running but may trigger spam/warning filters.
 
 Once created, the identity will enter a `verification pending` status awaiting DNS records for Domains or clicking a verification link for emails. 
 
-![Verification Email](docs/phase4/sesVerificationEmail.jpg)
+![Verification Email](docs/staticWebsite/phase4/sesVerificationEmail.jpg)
 
-### Step 2 - IAM
 Next, define a new IAM policy for Lambda with permissions that allow sending emails via SES. 
 
 ```
@@ -288,13 +291,12 @@ Next, create a role for lambda to assume during execution and attach the policy 
     ]
 }
 ```
-### Step 3 - Lambda
 Author a new lambda function from scratch
 - name the function
 - select the latest python runtime (python 3.9 at this time)
 - expand 'change default execution role' then select the newly created role.
 
-![Create Function](docs/phase4/createLambda.jpg)
+![Create Function](docs/staticWebsite/phase4/createLambda.jpg)
 
 Once created, replace the existing code source with the [contactForm.py script](lambda/contactForm.py) (also shown below) and deploy the changes.
 
@@ -335,13 +337,12 @@ Test the Lambda function by configuring a test event replacing the event JSON wi
 
 A successful test will return a message in the console and send the email.
 
-![Create Function](docs/phase4/lambdaTest.jpg)
+![Create Function](docs/staticWebsite/phase4/lambdaTest.jpg)
 
-### Step 4 - API Gateway
 
 Now all that is left is to connect the website to the Lambda function. Create a new REST API that will receive POST requests from the contact form then route the request to the lambda function.
 
-![Create API](docs/phase4/createAPI.jpg)
+![Create API](docs/staticWebsite/phase4/createAPI.jpg)
 
 Next, build out the API by clicking actions and:
 - Create a new API resource and select enable CORS
@@ -356,247 +357,397 @@ Now similar to Lambda, the API can be tested in the management console
 - click on test or the lightning bolt right below
 - Copy the same JSON event used to test the Lambda Function into the request body.
 
-![Successful Test](docs/phase4/successfulTest.jpg)
+![Successful Test](docs/staticWebsite/phase4/successfulTest.jpg)
 
 
 With the API created, click actions and deploy the API. Then navigate to the stages tab, expand the new stage, and select the POST method.
 
-![Stage-Post](docs/phase4/stagesPost.jpg)
+![Stage-Post](docs/staticWebsite/phase4/stagesPost.jpg)
 
 Finally, copy the POST invoke url and include the url in the website's contact form script. The invoke url should look similar to `https://dfh341235s.execute-api.us-east-1.amazonaws.com/01/contactme`
 
+## Dynamic Website Walkthrough (work in progress)
 
-## Phase5 - Continuous Deployment and Version Control
-Why: Automate deployment of website changes
+### Phase1 - EC2 and RDS Instances
+First, deploy resources in the default VPC to access the website with an unencrypted connection via HTTP and create a launch template for later use.
 
-What:
-
-1. Completed phase1
-
-2. GitHub account
-
-    2a. Repository with the website files
+Requirements:
+1. AWS account and IAM user with administrative permissions
 
 Resources:
-- [CodePipeline docs](https://docs.aws.amazon.com/codepipeline/latest/userguide/welcome.html)
+- [AWS account getting started](https://docs.aws.amazon.com/accounts/latest/reference/welcome-first-time-user.html)
+- [AWS management console](https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/learn-whats-new.html)
 
-### Step 1 - Artifact Bucket
-Create a new s3 bucket with default settings to contain the artifacts created by CodePipeline.
 
-![Create Bucket](docs/phase1/createBucket.jpg)
+Launch a new EC2 instance with the Red Hat quickstart AMI.
+- instance type t2.micro
+- create a new key pair
+- allow http traffice from the internet
+- launch instance
 
-### Step 2 - CodePipeline
-Navigate to the settings section of the CodePipeline console to create a new connection to GitHub. This will require signing into GitHub to integrate AWS connector as a GitHub app with your GitHub account/repository.
+![EC2 AMI](docs/dynamicWebsite/instanceAmi.jpg)
 
-![Create Connection](docs/phase5/createConnection.jpg)
+Create a new RDS MySQL database for WordPress to connect to from the EC2 instance
+- navigate to RDS
+- create database
+- easy create
+- MySQL
+- free tier
+- db identifier change to wordpress
+- password as password
+- expand ec2 connection
+- choose instance
+- create database
 
-### Step 3 - IAM
-Define a new IAM policy with the minimum permissions required for CodePipeline to transfer data from GitHub to S3. 
+![RDS Create](docs/dynamicWebsite/rdsEasyCreate.jpg)
 
-```
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Action": [
-                "codestar-connections:UseConnection"
-            ],
-            "Resource": "arn:aws:codestar-connections:us-east-1:MY-ACCOUNT-ID:connection/MY-CONNECTION-ID",
-            "Effect": "Allow"
-        },
-        {
-            "Action": [
-                "s3:PutObject"
-            ],
-            "Resource": [
-                "arn:aws:s3:::MY-WEBSITE-BUCKET-NAME/*",
-                "arn:aws:s3:::MY-ARTIFACT-BUCKET-NAME/*"
-            ],
-            "Effect": "Allow"
-        },
-        {
-            "Action": [
-                "s3:GetObject"
-            ],
-            "Resource": "arn:aws:s3:::MY-ARTIFACT-BUCKET-NAME/*",
-            "Effect": "Allow"
-        }
-    ]
-}
-```
-Next, create a role for CodePipeline to assume and attach the policy to this role.
+<!-- + need to dowload to /tmp since ssm can't access ec2-user + -->
 
-```
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "Service": [
-                    "codepipeline.amazonaws.com"
-                ]
-            },
-            "Action": [
-                "sts:AssumeRole"
-            ]
-        }
-    ]
-}
-```
+Return to the EC2 instance which should be up and running, copy the public IPv4 address, and ssh into the instance
 
-### Step 4 - CodePipeline
-Create a new pipeline 
-- select the artifact bucket for the artifact store (under advanced settings)
-- select the new role defined earlier 
+Install the wp application and dependencies
+- use mysql cli to access the db instance
+- create the wp db
+- edit wp-config.php adding database info
+- run more bash commands
 
-![Create Pipeline](docs/phase5/createPipeline.jpg)
+Now that the web server is up and running
+- navigate back to ec2 management console
+- copy the EC2 instance's public IPv4 address and paste it into a web browser
+- make sure the browser is attempting the connection with http or else the connection to the server will fail
+- greeted by wp install page
 
-Source Stage
-- Set the action provider as GitHub (Version 2)
-- Select the repository name and branch name where the website files are stored
-- keep other settings as default
+![Web HTTP](docs/dynamicWebsite/webEc2Http.jpg)
 
-Build Stage 
-- Skip
+Access to the server and wordpress operation has been verified
 
-Deploy Stage
-- Select S3 for the deploy stage provider
-- Select the website bucket for the deploy location
-- Select extract before deploy
-- keep other settings as default
+<!-- + bash commands deleting /var/www content leaving /tmp content + -->
+The storage volume of this instance will become part of a template later in a phase so a snapshot is required
+- navigate back to ec2 management console
+- elastic block store < volumes
+- select the volume
+- create snap
+- add desc
+- create
 
-Now source code changes in the GitHub repository will flow to the website bucket in S3 automatically.
+![Create Snap](docs/dynamicWebsite/ebsCreateSnap.jpg)
 
-![Successful Pipeline](docs/phase5/pipeline.jpg)
+Now terminate both the EC2 instance and the RDS database as the next phase will create a new VPC to deploy resources to.
 
-## Phase6 - Treating Infrastructure as Code
-Why: Automate deployment of website infrastructure
-
-What:
-
-1. Completed phases1-5 (optional)
-
-2. AWS account and IAM user with administrative permissions
-
-3. CloudFormation template
+### Phase2 - Networking
+The VPC and other resources created in this phase will allow for full control in defining the networking architecture required the application. Values such as CIDR ranges will be provided during the phase but feel free to diverge where needed.
 
 Resources:
-- [CloudFormation docs](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html)
-- [Template anatomy](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-anatomy.html)
-- [Resource and property type](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html)
-- [Intrinsic function reference](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference.html)
+- [AWS account getting started](https://docs.aws.amazon.com/accounts/latest/reference/welcome-first-time-user.html)
+- [AWS management console](https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/learn-whats-new.html)
 
-### Step 1 - Review Documentation and Phase Templates
-The cloudformation concepts to read over at the start are the `resources`, `parameters`, and `outputs` sections. The `resources` section is the only required section for a template but `parameters` and `outputs` can be very helpful.
+Create a new VPC that is customized for this use case
+- navigate to vpc console
+- create vpc
+- put wordpress for the name tag
+- ipv4 cidr block 10.16.0.0/16
+- leave other settings default
 
-The [cloudformation](./infrastructure/cloudformation/) folder in this repo houses templates that cover phases1-5 along with a master template that combines all five phases into one template.
+![Create VPC](docs/dynamicWebsite/createVpc.jpg)
 
-The phase1 template will be demo'd in this section but feel free to use the other templates also. As seen below, the phase1 template has two resources with the logical Ids `webBucket` and `BucketPolicyForPublicAccess` along with one output called `WebstieEndpointURL`.
+**TIP: The new resource map preview is helpful to visualize whats being created; check back to it as resources are created if there is any confusion**
 
-```
----
-AWSTemplateFormatVersion: '2010-09-09'
-Resources:
-  webBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    Properties:
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: 'false'
-        BlockPublicPolicy: 'false'
-        IgnorePublicAcls: 'false'
-        RestrictPublicBuckets: 'false'
-      WebsiteConfiguration:
-        IndexDocument: index.html
-  BucketPolicyForPublicAccess:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket:
-        Ref: webBucket
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Action:
-          - s3:GetObject
-          Effect: Allow
-          Resource:
-            Fn::Sub: arn:aws:s3:::${webBucket}/*
-          Principal: "*"
-Outputs:
-  WebstieEndpointURL:
-    Value:
-      Fn::GetAtt:
-      - webBucket
-      - WebsiteURL
-    Description: URL for unsecure access to the website
-```
+![Resource Map](docs/dynamicWebsite/resourceMapInitial.jpg)
 
-What may stand out in this template are the `Fn::Sub:` and `Fn::GetAtt:` functions. These functions exchange variables like `${webBucket}` with actual values during stack creation.
+Next, create the VPC subnets
+- navigate to subnets > create subnet > select wordpress vpc
+- create 9 subnets total
 
-Including functions is important in making templates portable, check the function reference in resources for more info.
+| name | az | cidr |
+| --- | --- | --- |
+| subn_web_a | us-east-1a | 10.16.0.0/20 |
+| subn_app_a | us-east-1a | 10.16.16.0/20 |
+| subn_data_a | us-east-1a | 10.16.32.0/20 |
+| subn_web_b | us-east-1b | 10.16.48.0/20 |
+| subn_app_b | us-east-1b | 10.16.64.0/20 |
+| subn_data_b | us-east-1b | 10.16.80.0/20 |
+| subn_web_c | us-east-1c | 10.16.96.0/20 |
+| subn_app_c | us-east-1c | 10.16.112.0/20 |
+| subn_data_c | us-east-1c | 10.16.128.0/20 |
 
-### Step 2 - Create a CloudFormation Stack
+The resource map should now look like this
 
-Upload the [phase1 template](./infrastructure/cloudformation/phase1.yml) to the CloudFormation service to begin stack creation
+![Resource Map Subnets](docs/dynamicWebsite/resourceMapSubnets.jpg)
 
-![Create Bucket](docs/phase6/specifyTemplate.jpg)
+The vpc has no internet connectivity for users to reach the wordpress server(s) so an internet gateway is needed
+- navigate to igw > create
+- wordpress-igw for name and create
+- click actions > attach to vpc
+- select wp vpc and click attach
+- refresh vpc console and check resource map
 
-Pick a stack name and leave all other stack options as default
+The web subnets need a route table and routes to reach the igw
+- navigate to route tables and create
+- named public_rtb
+- select wp vpc
+- edit routes
+- add
+- 0.0.0.0/0 (anywhere)
+- target igw
+- save
+- edit subn associations
+- select each web sb
+- save
 
-![Create Bucket](docs/phase6/stackDetails.jpg)
+![Resource Map IGW](docs/dynamicWebsite/resourceMapIgw.jpg)
 
-Check the review page for any mistakes and click submit
+The app subnets need egress only internet connectivity (nat gateway) to downlaod updates, plugins, etc.
+- navigate vpc > natgw > create
+- name wordpress_natgw
+- pick web subnet a in new vpc
+- allocate eip
+- create
 
-### Step 3 - Review CloudFormation Stack Progress
+Create route table and routes from app subnets to natgw
+- name egress_rtb
+- pick vpc
+- create
+- subnet association
+- pick app subnets
+- save
+- edit route > add
+- dest = 0.0.0.0/0, target natgw
+- save
 
-The stack will initially be in the `CREATE_IN_PROGRESS` state
+![Resource Map Final](docs/dynamicWebsite/resourceMapFinal.jpg)
 
-![Create Bucket](docs/phase6/stackProgress.jpg)
+### Phase3 - Load Balancing, Autoscaling, and RDS
+With the new VPC and networking resources created, the EC2 instance and RDS database can be redeployed
 
-Check the events tab to see details on creating the resources defined in the template
+First, create security groups so resources can comm in custom vpc
 
-![Create Bucket](docs/phase6/stackEvents.jpg)
 
-Once the stack has finished creating (or updating) all resources the outputs tab will list any key value pairs included in the template.
+- name web_sg with rules:
 
-```
-Outputs:
-  WebstieEndpointURL:
-    Value:
-      Fn::GetAtt:
-      - webBucket
-      - WebsiteURL
-    Description: URL for unsecure access to the website
-```
+| type | port | target |
+| --- | --- | --- |
+| inbound | 80 | 0.0.0.0/0 |
+| outbound | 80 | app_sg |
 
-Check the outputs tab to see the S3 bucket website endpoint url.
+- name app_sg with rules:
 
-![Create Bucket](docs/phase6/stackOutputs.jpg)
+| type | port | target |
+| --- | --- | --- |
+| inbound | 80 | web_sg |
+| outbound | 443 | 0.0.0.0/0 |
+| outbound | 3306 | data_sg |
 
-Looking back earlier in this walkthrough to phase1 shows the manual steps to accomplish the same work done by the CloudFormation stack (besides uploading the website files to the bucket).
+- name data_sg with rules:
 
-### Step 4 - Delete the CloudFormation Stack
+| type | port | target |
+| --- | --- | --- |
+| inbound | 3306 | app_sg |
 
-Just as resources are made when creating the stack, they are terminated when deleting the stack unless `DeletionPolicy: Retain` is specified for a resource.
+Before deploying a the database create a subnet group for the new VPC. RDS requires a subnet group incase the database is ever configured for Multi-AZ.
+- navigate to rds > subnet groups > create
+- name rds_subnets
+- desc
+- pick vpc
+- pick a/b/c AZs
+- pick data subnet ids
+- create
 
-![Create Bucket](docs/phase6/deleteStack.jpg)
+Now create the RDS database
+- standard
+- mysql
+- applicable tier (free tier for learning)
+- wordpress db ident
+- secure password #change to secrets manager
+- don't auto setup ec2 connect
+- select vpc
+- select subnet group
+- remove existing sgs and add data sg
+- expand additonal config > initial db name as wordpress_db
+- create
 
-In this case the bucket is not deleted and shows a `DELETE_SKIPPED` status since the deletion policy has been set to retain.
+![RDS Standard Create](docs/dynamicWebsite/rdsStandardCreate.jpg)
 
-```
-Resources:
-  webBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-```
-![Create Bucket](docs/phase6/deleteResources.jpg)
+With the database deployed, the next focus will be the web server. The sever will no longer be provisioned manual and an auto scaling group (ASG) will be used instead. 
 
-The phase1 template is setup this way as a bucket resource that has objects in it will fail to delete and throw an error.  S3 bucket resources are an exception in this case as most all resources are deleted when the stack is deleted without extra setup required in a template.
+Two items are needed before the ASG is created:
+- iam role
+- launch template
 
-Reading through the CloudFormation documentation to write templates and create stacks is pretty straightforward though there are exceptions such as the bucket resource one discussed earlier.
+The EC2 instance will need credentials to access Systems Manager for remote terminal sessions
+- navigate to iam
+- create role
+- aws service
+- ec2 use case (creates a trust policy)
+- add AmazonSSMManagedInstanceCore policy
+- name ssm_for_ec2
+- create
+
+![Create IAM Role](docs/dynamicWebsite/ssmRole.jpg)
+
+The launch template will serve as the blueprint for the ASG to launch instances
+- nav to ec2 > launch tempalate > create
+- select snap that was made
+- select iam role under advanced details > iam instance profile
+- don't include subnet info
+- pick app_sg
+
+![Launch Template](docs/dynamicWebsite/launchTemplate.jpg)
+
+With the prereqs out of the way, create the ASG
+- navigate ec2 > auto scaling groups
+- create
+- name wordpress_autoscaling
+- pick lt
+- version latest
+- pick vpc
+- pick app subnets
+- set desired/min/max capacities (tip: for easy 1 instance failover use 1/1/1)
+- create
+<!-- + look into scaling policy + -->
+<!-- + add refresh based on lt + -->
+
+![Auto Scaling Group](docs/dynamicWebsite/autoScalingGroup.jpg)
+
+<!-- + need to update lt or take snap later or automate config + -->
+Configure wp (add db info to wp-config)
+- cant ssh directly in anymore unless a bastion host is setup
+- can use ssm to access command line
+- navigate ssm > fleet manager and wait for instance to show up
+- when shows up node action > start terminal session
+- run bash commands
+
+With the ASG providing constant servers to run wp two things are needed: a static endpoint to access the wp servers and traffic distribution among the instances launched by the ASG. Load balancing solves both points and requires a target group
+
+Create target grp
+- ec2 > target grp > create
+- name wordpress-target-grp
+- confirm correct vpc
+- health check path /wp-login.php
+- expand adv hc settings > success codes 200,302
+- next
+- select instance and include
+- create
+
+![Target Group](docs/dynamicWebsite/targetGroup.jpg)
+
+The load balancer type will be an application load balancer for this deployment since SSL encrytion will be offloaded from the server and onto the load balancer and a SSL cert cannot be attached to a network load balancer.
+
+Create load balancer 
+- ec2 > load balancer > create
+- alb
+- name wordpress-lb
+- pick vpc
+- pick all three azs and the web subnets
+- remove default sg and pick web sg
+- pick target grp
+- create
+
+![Load Balancer](docs/dynamicWebsite/loadBalancer.jpg)
+
+The wp site is now accessible via the alb dns endpoint
+
+![Web LB HTTP](docs/dynamicWebsite/webAlbHttp.jpg)
+
+### Phase4 - Custom Domain and SSL
+Next, a user friendly way to access the site will be implemented via a custom domain name and the connection between the two will be encrypted.
+
+Requirements:
+- registered domain name
+- R53 hosted zone for domain
+
+To make the site reachable via custom domain name, create a R53 alias record pointing to the load balancer endpoint
+- navigate r53 > hosted zone > create record
+- alias switched on
+- route traffice to alb endpoint
+- create
+
+![Alias Record](docs/dynamicWebsite/aliasRecord.jpg)
+
+Now navigate to site from a browser with the custom domain using http
+- double click in address bar to verify https is NOT used since its default
+- wont resolve to site yet if https
+
+![Web Domain HTTP](docs/dynamicWebsite/webDomainHttp.jpg)
+
+The first step to encrypting the connection is to request a SSL certificate
+- navigate to acm > request
+- public cert
+- fqdn as custom domain
+- leave default and request
+- create new CNAME record in r53 with the name/value provided in acm console
+- wait for cert status to display issued
+
+![ACM Cert](docs/dynamicWebsite/acmCert.jpg)
+
+Edit wp if needed (wp config)
+- nav to ssm fleet > node action > start terminal session
+- vim config
+- add https info
+
+Now the load balancer listener needs to be configured to use https and have the SSL cert attached
+- change inb sg rule from http to https
+- pick http listener > actions > edit
+- change protocol from http to https
+- pick acm cert for default ssl/tls cert
+- save
+
+![LB Listener](docs/dynamicWebsite/albListenerHttps.jpg)
+
+The site is now reachable from custom domain using https
+- again check url or manually type https:// or the url won't resolve if its trying http still
+
+![Web Domain SSL](docs/dynamicWebsite/webDomainSsl.jpg)
+
+### Phase5 - Content Delivery Network
+This phase adds a content delivery netowrk to improve access speed for downloading the site's content and will also improve performance by reducing the amount of requests process by the web server.
+
+First, create a cloudfront distribution and default behavior
+- nav cf > create
+- pick lb endpoint as origin domain
+- name as wordpress
+- viewer protocol policy redirect http to https
+- allow all http methods and cache options method
+- cache policy as managed cachingOptimized?
+- origin request policy as custom? for header/cookies
+- waf do not use
+- alternate domain name (CNAME) as domain name
+- custom ssl cert same as lb cert
+- create
+
+![CF Distribution](docs/dynamicWebsite/cloudfrontDistribution.jpg)
+
+**NOTE**: The wp admin / login page may not function propery untill cf behaviors are added that pass all headers
+
+Next, create any other required behaviors (these are specific to wp) for the site: 
+
+| Property | Default | Admin | Login | Content | Includes
+| --- | --- | --- | --- | --- | --- 
+| paths | * | wp-admin/* | wp-login.php | wp-content/* | wp-includes/*
+| protocols | HTTPS | HTTPS | HTTPS | HTTPS | HTTPS
+| http methods | all | all | all | GET, HEAD | GET, HEAD
+| http headers | some | all | all | none | none
+| cookies | some | all | all | none | none
+| query strings | yes | yes | yes | yes | yes
+
+![CF Behavior](docs/dynamicWebsite/cloudfrontBehaviors.jpg)
+
+Now edit the R53 alias record to point to the cloudfront distribution endpoint instead of the load balancer endpoint
+- alis to cf
+- enter cf dns endpoint
+- save
+
+![Alias Record CF](docs/dynamicWebsite/aliasRecordCloudfront.jpg)
+
+Now the domain is being served via cloudfront which can be seen in google chrome by
+- right click web page for site in browser > inspect
+- network tab
+- refresh site
+- click install.php
+- view response headers
+
+![Web Headers](docs/dynamicWebsite/webResponseHeaders.jpg)
 
 ## Credits
-Thanks to [AJ](https://twitter.com/ajlkn) and [Ram](https://twitter.com/ram__patra) for the awesome [website template](https://github.com/rampatra/photography).
+Thanks to [AJ](https://twitter.com/ajlkn) and [Ram](https://twitter.com/ram__patra) for the awesome [static website template](https://github.com/rampatra/photography).
 
 Thanks to [Adrian](https://twitter.com/adriancantrill) for his AWS training and the [techstudyslack](techstudyslack.slack.com) community for help with anything AWS.
