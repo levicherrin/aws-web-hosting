@@ -94,8 +94,8 @@ This phase explains how to configure CloudFront to deliver the website. CloudFro
 
 1.  **Disable static website hosting** on the S3 bucket.
 
-    > [!NOTE]
-    > Static website hosting is disabled because CloudFront will access the bucket using its REST API endpoint, which allows more control over content access. The REST API endpoint is different from the static website hosting endpoint.
+> [!NOTE]
+> Static website hosting is disabled because CloudFront will access the bucket using its REST API endpoint, which allows more control over content access. The REST API endpoint is different from the static website hosting endpoint.
 
 2.  **Create a new CloudFront distribution.** Configure the distribution with the following:
 
