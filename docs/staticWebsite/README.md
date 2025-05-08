@@ -111,7 +111,11 @@ This phase explains how to configure CloudFront to deliver the website. CloudFro
 
     - Navigate to the "Permissions" tab of the S3 bucket.
     - **Enable "Block all public access."**
-    - **Edit the bucket policy** to grant CloudFront's OAC identity access to retrieve objects. Replace `MY-BUCKET-NAME`, `MY-ACCOUNT-ID`, and `MY-DISTRIBUTION-ID` with the specific values.
+    - **Edit the bucket policy** to grant CloudFront's OAC identity access to retrieve objects.
+
+    ![Edit Bucket Policy](phase2/bucketPolicy.jpg)
+
+    - **Replace** `MY-BUCKET-NAME`, `MY-ACCOUNT-ID`, and `MY-DISTRIBUTION-ID` with the specific values.
 
         ```json
         {
@@ -167,14 +171,14 @@ This phase explains how to associate a registered domain name with the CloudFron
     - Choose **Request a certificate**.
     - Select **Request a public certificate**.
     - In the **Domain name** field, enter a wildcard subdomain (e.g., `*.example.com`).
+    
+    ![Request Certificate](phase3/requestCertificate.jpg)
+    
     - Choose **Add another domain name** and enter the root domain (e.g., `example.com`).
+    - Keep all other settings at their default values and choose **Request**.
 
 > [!NOTE]
 > Requesting a certificate with a wildcard subdomain and the root domain allows the same certificate to secure `www.example.com`, `blog.example.com`, and `example.com`.
-
-    - Keep all other settings at their default values and choose **Request**.
-
-        ![Request Certificate](phase3/requestCertificate.jpg)
 
 2.  **Validate the ACM certificate request.**
 
@@ -200,8 +204,8 @@ This phase explains how to associate a registered domain name with the CloudFron
     - In the **Alternate domain name (CNAMEs) - optional** field, add the root domain (e.g., `example.com`).
     - Repeat the step above for any subdomains (e.g., `www.example.com`).
     - In the **Custom SSL certificate** section, choose the public certificate issued by ACM in Step 1.
-
-        ![Edit Distribution](phase3/editDistribution.jpg)
+    
+    ![Edit Distribution](phase3/editDistribution.jpg)
 
 The website is now accessible via HTTPS using the custom domain name (e.g., `https://www.example.com`).
 
