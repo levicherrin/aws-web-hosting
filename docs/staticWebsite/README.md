@@ -40,13 +40,13 @@ This phase explains how to create a simple website and make it accessible on the
 
 1.  **Create a new bucket** in the S3 console, accepting the default settings.
 
-    ![Create Bucket](phase1/createBucket.jpg)
+    ![Create Bucket](images/createBucket.jpg)
 
 2.  **Upload the website files** (HTML, CSS, JavaScript, images) to the bucket.
 
 3.  **Adjust the permissions** to allow public access to the files in the bucket. Navigate to the "Permissions" tab of the bucket and disable "Block all public access."
 
-    ![Unblock Access](phase1/blockPublicAccess.jpg)
+    ![Unblock Access](images/blockPublicAccess.jpg)
 
 > [!WARNING]
 > Making the bucket publicly accessible has security implications. Ensure the risks are understood before proceeding.
@@ -72,7 +72,7 @@ This phase explains how to create a simple website and make it accessible on the
 
 6.  **Click on the bucket website endpoint** to access the site via HTTP in a new tab.
 
-    ![Website](phase1/bucketWebsite.jpg)
+    ![Website](images/bucketWebsite.jpg)
 
 ### Phase 2 - Encryption and Caching
 
@@ -105,7 +105,7 @@ This phase explains how to configure CloudFront to deliver the website. CloudFro
     - **Price class:** Choose a price class aligned with the budget and expected user locations.
     - **Default root object:** Enter the website's index document (e.g., `index.html`).
 
-    ![Create Distribution](phase2/createDistribution.jpg)
+    ![Create Distribution](images/createDistribution.jpg)
 
 3.  **Update S3 bucket permissions.**
 
@@ -113,7 +113,7 @@ This phase explains how to configure CloudFront to deliver the website. CloudFro
     - **Enable "Block all public access."**
     - **Edit the bucket policy** to grant CloudFront's OAC identity access to retrieve objects.
 
-    ![Edit Bucket Policy](phase2/bucketPolicy.jpg)
+    ![Edit Bucket Policy](images/bucketPolicy.jpg)
 
     - **Replace** `MY-BUCKET-NAME`, `MY-ACCOUNT-ID`, and `MY-DISTRIBUTION-ID` with the specific values.
 
@@ -142,7 +142,7 @@ This phase explains how to configure CloudFront to deliver the website. CloudFro
 
     - The website is now accessible securely via HTTPS using the CloudFront distribution's domain name (e.g., `hj34l2kdfks.cloudfront.net`), found in the distribution's details.
 
-    ![Cloudfront Website](phase2/cloudfrontWebsite.jpg)
+    ![Cloudfront Website](images/cloudfrontWebsite.jpg)
 
 ### Phase 3 - Custom Domain Name
 
@@ -172,7 +172,7 @@ This phase explains how to associate a registered domain name with the CloudFron
     - Select **Request a public certificate**.
     - In the **Domain name** field, enter a wildcard subdomain (e.g., `*.example.com`).
     
-    ![Request Certificate](phase3/requestCertificate.jpg)
+    ![Request Certificate](images/requestCertificate.jpg)
     
     - Choose **Add another domain name** and enter the root domain (e.g., `example.com`).
     - Keep all other settings at their default values and choose **Request**.
@@ -205,8 +205,8 @@ This phase explains how to associate a registered domain name with the CloudFron
     - Repeat the step above for any subdomains (e.g., `www.example.com`).
     - In the **Custom SSL certificate** section, choose the public certificate issued by ACM in Step 1.
     
-    ![Edit Distribution](phase3/editDistribution.jpg)
+    ![Edit Distribution](images/editDistribution.jpg)
 
 The website is now accessible via HTTPS using the custom domain name (e.g., `https://www.example.com`).
 
-![Custom Website](phase3/customDomain.jpg)
+![Custom Website](images/customDomain.jpg)
