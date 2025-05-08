@@ -100,15 +100,7 @@ This phase explains how to configure CloudFront to deliver the website. CloudFro
 2.  **Create a new CloudFront distribution.** Configure the distribution with the following:
 
     - **Origin domain:** Select the **REST API endpoint** of the S3 bucket as the origin.
-
-        > [!TIP]
-        > The REST API endpoint is for programmatic access to the S3 bucket, unlike the website endpoint for browsers.
-
     - **Origin Access Control (OAC):** Add a new OAC identity using the distribution wizard. Choose to manually add permissions to the S3 bucket.
-
-        > [!IMPORTANT]
-        > Origin Access Control (OAC) is the recommended method to restrict access to the S3 content, allowing only CloudFront to access it.
-
     - **Viewer protocol policy:** Set this to "Redirect HTTP to HTTPS" for secure access.
     - **Price class:** Choose a price class aligned with the budget and expected user locations.
     - **Default root object:** Enter the website's index document (e.g., `index.html`).
@@ -119,10 +111,6 @@ This phase explains how to configure CloudFront to deliver the website. CloudFro
 
     - Navigate to the "Permissions" tab of the S3 bucket.
     - **Enable "Block all public access."**
-
-        > [!WARNING]
-        > Re-enabling "Block all public access" is crucial for security. CloudFront will be the sole entity with access.
-
     - **Edit the bucket policy** to grant CloudFront's OAC identity access to retrieve objects. Replace `MY-BUCKET-NAME`, `MY-ACCOUNT-ID`, and `MY-DISTRIBUTION-ID` with the specific values.
 
         ```json
@@ -181,15 +169,12 @@ This phase explains how to associate a registered domain name with the CloudFron
     - In the **Domain name** field, enter a wildcard subdomain (e.g., `*.example.com`).
     - Choose **Add another domain name** and enter the root domain (e.g., `example.com`).
 
-        >   [!NOTE]
-        >   Requesting a certificate with a wildcard subdomain and the root domain allows the same certificate to secure `www.example.com`, `blog.example.com`, and `example.com`.
+> [!NOTE]
+> Requesting a certificate with a wildcard subdomain and the root domain allows the same certificate to secure `www.example.com`, `blog.example.com`, and `example.com`.
 
     - Keep all other settings at their default values and choose **Request**.
 
         ![Request Certificate](phase3/requestCertificate.jpg)
-
-        >   [!IMPORTANT]
-        >   This step requires the ability to modify DNS records for the domain to validate the certificate request.
 
 2.  **Validate the ACM certificate request.**
 
